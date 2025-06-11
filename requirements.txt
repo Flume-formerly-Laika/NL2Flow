@@ -2,5 +2,5 @@ fastapi
 uvicorn
 openai
 pydantic
-pyke3
+pyke
 jsonschema
