@@ -13,7 +13,7 @@ This project converts natural language automation requests into structured flow 
 pip install -r requirements.txt
 ./run.sh
 
-#API Example
+##API Example
 Request
 POST /parse-request
 {
