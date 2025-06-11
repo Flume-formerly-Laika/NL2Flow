@@ -6,7 +6,10 @@
  */
 """
 
+# OpenAI library for interacting with GPT models and making API calls
 import openai
+
+# JSON library for parsing and handling JSON data from GPT responses
 import json
 
 """
