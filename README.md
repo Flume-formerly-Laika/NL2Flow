@@ -21,6 +21,7 @@ POST /parse-request
   "user_input": "When a new user signs up, send a welcome email with their name and signup date."
 }
 
+
 Response
 {
   "trace_id": "uuid-1234",
