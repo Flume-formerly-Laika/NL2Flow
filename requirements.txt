@@ -3,5 +3,3 @@ uvicorn
 openai
 pydantic
 jsonschema
-git+https://github.com/rocky/python-uncompyle6.git#egg=uncompyle6
-git+https://github.com/rocky/python-pyke.git#egg=pyke
