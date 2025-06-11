@@ -12,6 +12,7 @@ This project converts natural language automation requests into structured flow 
 ```bash
 pip install -r requirements.txt
 ./run.sh
+```
 
 ##API Example
 Request
