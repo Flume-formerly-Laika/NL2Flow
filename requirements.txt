@@ -3,4 +3,4 @@ uvicorn
 openai
 pydantic
 jsonschema
-durable-rules
+business-rules
