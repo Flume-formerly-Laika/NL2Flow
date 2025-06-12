@@ -4,4 +4,4 @@ openai
 pydantic
 jsonschema
 business-rules
-pyke @ https://sourceforge.net/projects/pyke/files/pyke/pyke-1.1.1/pyke-1.1.1.tar.gz/download
+pyke3
