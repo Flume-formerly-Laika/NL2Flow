@@ -24,7 +24,7 @@ from utils.validator import validate_flow
 
 app = FastAPI() # main FastAPI application instance
 
-@app.post("/parse-request")
+@app.post("/parse-request") # Add a path operation using an HTTP POST operation.
 async def parse_request(payload: NLRequest, request: Request):
     '''
     @brief Parses the natural language request 'n' returns the corresponding email flow JSON
