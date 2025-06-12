@@ -4,4 +4,3 @@ openai
 pydantic
 jsonschema
 business-rules
-pyke3
