@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "flow": {
+      "type": "object",
+      "properties": {
+        "trigger": { "type": "object" },
+        "actions": { "type": "array" }
+      },
+      "required": ["trigger", "actions"]
+    }
+  },
+  "required": ["flow"]
+}
