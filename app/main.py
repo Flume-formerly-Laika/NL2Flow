@@ -8,19 +8,19 @@
 from fastapi import FastAPI, Request, HTTPException
 
 # import models for request payload
-from models import NLRequest
+from app.models import NLRequest
 
 # import gpt handler for extracting intent
-from gpt_handler import extract_intent
+from app.gpt_handler import extract_intent
 
 # import transformer for building flow JSON and utils for logging and validation
-from transformer import build_flow_json
+from app.transformer import build_flow_json
 
 # import logger for logging requests
-from utils.logger import log_request
+from app.utils.logger import log_request
 
 # import validator for validating the flow against JSON schema
-from utils.validator import validate_flow
+from app.utils.validator import validate_flow
 
 app = FastAPI() # main FastAPI application instance
 
