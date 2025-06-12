@@ -18,7 +18,7 @@ from pyke import knowledge_engine
  */
 '''
 engine = knowledge_engine.engine(__file__)
-engine.activate('field_mapping')
+engine.activate('field_mapping.krb')
 
 def map_fields(field_dict):
     """
