@@ -4,4 +4,5 @@ openai
 pydantic
 jsonschema
 business-rules
-pyke3 
+pyke3
+python-dotenv
