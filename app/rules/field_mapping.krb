@@ -1,0 +1,3 @@
+field_map("email", "user_email")
+field_map("signup date", "registration_date")
+field_map("name", "first_name")
