@@ -1,4 +1,4 @@
-from app.rules.field_mapper import map_fields
+from rules.field_mapper import map_fields
 
 def build_flow_json(intent):
     raw_fields = intent["actions"][0]["fields"]
