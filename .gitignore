@@ -1,4 +1,32 @@
+# Environment variables
+.env
+
+# Python cache
 env
 app/__pycache__
 app/rules/__pycache__
-.env
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+ENV/
+env/
+.env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# PyKE compiled rules (if using PyKE)
+app/rules/kb_*
