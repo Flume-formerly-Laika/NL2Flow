@@ -6,3 +6,5 @@ jsonschema
 business-rules
 pyke
 python-dotenv
+pytest
+httpx
