@@ -66,6 +66,14 @@ async def root():
                     }
                     </div>
                 </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/parse-request</strong> - Browser-friendly version for testing</p>
+                    <p><a href="/parse-request">Try with default example</a></p>
+                    <div class="example">
+                    http://localhost:8000/parse-request?user_input=Your request here
+                    </div>
+                </div>
                 
                 <h2>Documentation:</h2>
                 <p>📚 <a href="/docs">Interactive API Documentation (Swagger UI)</a></p>
@@ -100,6 +108,31 @@ async def parse_request(payload: NLRequest, request: Request):
     @raises HTTPException if processing fails
     '''
     trace_id = log_request(request, payload.user_input)
+    
+    try:
+        intent = await extract_intent(payload.user_input)
+        flow_json = build_flow_json(intent)
+        validate_flow(flow_json)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+    return {"trace_id": trace_id, "flow": flow_json}
+
+@app.get("/parse-request")
+async def parse_request_get(user_input: str = "When a new user signs up, send a welcome email"):
+    """
+    GET version of parse-request for easy browser testing
+    Example: http://localhost:8000/parse-request?user_input=Your request here
+    """
+    # Create a mock request object for logging
+    class MockRequest:
+        def __init__(self):
+            self.url = type('obj', (object,), {'path': '/parse-request'})
+    
+    mock_request = MockRequest()
+    payload = NLRequest(user_input=user_input)
+    
+    trace_id = log_request(mock_request, payload.user_input)
     
     try:
         intent = await extract_intent(payload.user_input)
