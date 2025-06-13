@@ -24,6 +24,11 @@ from app.utils.validator import validate_flow
 
 app = FastAPI() # main FastAPI application instance
 
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {"status": "ok"}
+
 @app.post("/parse-request") # Add a path operation using an HTTP POST operation.
 async def parse_request(payload: NLRequest, request: Request):
     '''
