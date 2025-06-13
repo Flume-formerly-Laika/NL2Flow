@@ -1,3 +1,4 @@
-field_map("email", "user_email").
-field_map("signup date", "registration_date").
-field_map("name", "first_name").
+# Map raw field names to canonical names
+field_mapping("name", "first_name").
+field_mapping("email", "user_email").
+field_mapping("signup_date", "registration_date").

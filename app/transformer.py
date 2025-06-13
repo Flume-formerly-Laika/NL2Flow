@@ -1,6 +1,6 @@
 from app.rules.field_mapper import map_fields
 
-def build_flow_json(intent):
+def build_flow_json(intent:dict) -> dict:
     actions = intent.get("actions", [])
     if not actions or "fields" not in actions[0]:
         raise ValueError("Invalid intent structure")
