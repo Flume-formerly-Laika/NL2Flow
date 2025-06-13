@@ -22,13 +22,13 @@ class NLRequest(BaseModel):
     user_input: str
 
 class FlowResponse(BaseModel):
-    '''
-    For responses
+    """
+    For responses.
 
     Attributes:
     trace_id: given id
 
     flow: the flow
-    '''
+    """
     trace_id: str
     flow: Dict[str, Any]
