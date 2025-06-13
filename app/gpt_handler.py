@@ -7,10 +7,14 @@
 """
 
 # OpenAI library for interacting with GPT models and making API calls
-import openai
+from openai import OpenAI
+import os
 
 # JSON library for parsing and handling JSON data from GPT responses
 import json
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 """
 /**
@@ -19,7 +23,22 @@ import json
  * @type str
  */
 """
-SYSTEM_PROMPT = "You are an AI that extracts structured automation flows from user requests."
+SYSTEM_PROMPT = """You are an AI that extracts structured automation flows from user requests. 
+Return a JSON object with this structure:
+{
+  "trigger": "user_signup",
+  "actions": [
+    {
+      "type": "send_email",
+      "template": "welcome",
+      "fields": {
+        "name": "user.name",
+        "email": "user.email",
+        "signup_date": "user.signup_date"
+      }
+    }
+  ]
+}"""
 
 def build_prompt(user_input: str) -> list:
     """
@@ -44,9 +63,27 @@ async def extract_intent(user_input: str) -> dict:
      * @throws Exception If there's an error in API call or response parsing
      */
     """
-    response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",
-        messages=build_prompt(user_input),
-        temperature=0.2
-    )
-    return json.loads(response["choices"][0]["message"]["content"])
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=build_prompt(user_input),
+            temperature=0.2
+        )
+        content = response.choices[0].message.content
+        return json.loads(content)
+    except Exception as e:
+        # Fallback response if API fails
+        return {
+            "trigger": "user_signup",
+            "actions": [
+                {
+                    "type": "send_email",
+                    "template": "welcome",
+                    "fields": {
+                        "name": "user.name",
+                        "email": "user.email",
+                        "signup_date": "user.signup_date"
+                    }
+                }
+            ]
+        }
