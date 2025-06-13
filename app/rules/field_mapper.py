@@ -1,38 +1,28 @@
 """
 /**
  * @file field_mapper.py
- * @brief Maps field names using PyKE knowledge engine rules
+ * @brief Maps field names using a simple dictionary approach
  * @author Huy Le (huyisme-005)
  */
-
-
 """
 
-# Import PyKE.knowledge_engine for field mapping rules
-from pyke import knowledge_engine
-'''
-/**
- * @var engine
- * @brief PyKE knowledge engine instance for field mapping rules
- * @type knowledge_engine.engine
- */
-'''
-engine = knowledge_engine.engine(__file__)
-engine.activate('field_mapping')
+# Simple field mapping dictionary to replace PyKE complexity
+FIELD_MAPPINGS = {
+    "name": "first_name",
+    "email": "user_email", 
+    "signup_date": "registration_date"
+}
 
-def map_fields(field_dict:dict)->dict:
+def map_fields(field_dict: dict) -> dict:
     """
-    
-     @brief Maps field names using PyKE knowledge engine rules
-     @param field_dict Dictionary of field names and their source values
-     @return dict Dictionary with mapped field names and values
-     @throws None (falls back to source value on error)
-     
+    @brief Maps field names using predefined mapping rules
+    @param field_dict Dictionary of field names and their source values
+    @return dict Dictionary with mapped field names and values
+    @throws None (falls back to source value on error)
     """
-    kb = engine.get_kb('field_mapping')
     result = {}
-    for k, v in field_dict.items():
-        facts = kb.get_fact_literals((k, None))
-        mapped = facts[0][1] if facts else v
-        result[k] = mapped
+    for key, value in field_dict.items():
+        # Use mapped name if available, otherwise use original key
+        mapped_key = FIELD_MAPPINGS.get(key, key)
+        result[mapped_key] = value
     return result
