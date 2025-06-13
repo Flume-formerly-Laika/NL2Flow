@@ -1,3 +1,4 @@
 env
 app/__pycache__
 app/rules/__pycache__
+.env
