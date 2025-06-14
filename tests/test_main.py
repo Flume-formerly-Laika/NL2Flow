@@ -50,3 +50,17 @@ def test_parse_missing_fields():
     r = client.post("/parse-request", json={"user_input": ""})
     
     assert r.status_code == 422
+
+def test_parse_valid_input():
+    """
+    /**
+     * @brief Tests the parse-request endpoint with valid input
+     * @return None
+     * @throws AssertionError if the API doesn't process valid input correctly
+     * @details Verifies that valid user input returns 200 status with trace_id and flow
+     */
+    """
+    r = client.post("/parse-request", json={"user_input": "Send welcome email"})
+    assert r.status_code == 200
+    assert "trace_id" in r.json()
+    assert "flow" in r.json()
