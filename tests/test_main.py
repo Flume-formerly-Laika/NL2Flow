@@ -34,7 +34,7 @@ def test_health():
     """
 
     r = client.get("/health")
-    assert r.status_code == 200 and r.json() == {"status": "ok"}
+    assert r.status_code == 200 and r.json() == {"status": "ok", "message": "NL2Flow API is running"}
 
 def test_parse_missing_fields():
 
