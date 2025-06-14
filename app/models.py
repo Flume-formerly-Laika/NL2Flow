@@ -8,7 +8,7 @@
 """
 # Imports BaseModel from pydantic for data validation
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from typing import Any, Dict
 
@@ -19,7 +19,7 @@ class NLRequest(BaseModel):
     Attributes:
         user_input (str): The natural language input from the user
     """
-    user_input: str
+    user_input: str = Field(..., min_length=1, description="The natural language input from the user (cannot be empty)")
 
 class FlowResponse(BaseModel):
     """
