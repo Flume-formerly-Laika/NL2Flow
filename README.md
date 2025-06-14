@@ -58,27 +58,113 @@ chmod +x run.sh
    OPENAI_API_KEY=sk-your-actual-api-key-here
    ```
 
-## API Usage
+## API Documentation
 
 The server runs on `http://localhost:8000`
 
-### API Documentation
-Visit `http://localhost:8000/docs` for interactive API documentation.
+### Available Endpoints
 
-### Example Request
+#### 1. Health Check
+- **URL**: `GET /health`
+- **Purpose**: Check if the API is running
+- **Response**: 
+  ```json
+  {
+    "status": "ok",
+    "message": "NL2Flow API is running"
+  }
+  ```
+
+#### 2. Parse Natural Language Request (POST)
+- **URL**: `POST /parse-request`
+- **Purpose**: Convert natural language to automation flow
+- **Content-Type**: `application/json`
+
+#### 3. Parse Natural Language Request (GET)
+- **URL**: `GET /parse-request`
+- **Purpose**: Browser-friendly version for testing
+- **Query Parameter**: `user_input` (optional, defaults to example)
+
+#### 4. Interactive Documentation
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+
+## API Usage Guide
+
+### Request Format
+
+#### POST Request
 ```bash
 POST http://localhost:8000/parse-request
 Content-Type: application/json
 
 {
-  "user_input": "When a new user signs up, send a welcome email with their name and signup date."
+  "user_input": "Your natural language automation request here"
 }
 ```
 
-### Example Response
+#### GET Request (for browser testing)
+```
+http://localhost:8000/parse-request?user_input=Your request here
+```
+
+### Request Payload
+
+The request payload must contain a `user_input` field with your natural language description:
+
 ```json
 {
-  "trace_id": "uuid-1234-5678-9abc",
+  "user_input": "string (required, minimum 1 character)"
+}
+```
+
+**Requirements:**
+- `user_input` must be a non-empty string
+- Describe the automation you want in plain English
+- Include trigger events and desired actions
+
+### Response Format
+
+All successful responses return the following structure:
+
+```json
+{
+  "trace_id": "unique-uuid-for-tracking",
+  "flow": {
+    "flow": {
+      "trigger": {
+        "event": "trigger_type"
+      },
+      "actions": [
+        {
+          "action_type": "send_email",
+          "template_id": "template_name",
+          "params": {
+            "field_name": "{{ user.source.field }}"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Examples
+
+#### Example 1: Welcome Email
+**Request:**
+```bash
+curl -X POST "http://localhost:8000/parse-request" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "user_input": "When a new user signs up, send a welcome email with their name and signup date."
+     }'
+```
+
+**Response:**
+```json
+{
+  "trace_id": "550e8400-e29b-41d4-a716-446655440000",
   "flow": {
     "flow": {
       "trigger": {
@@ -99,6 +185,144 @@ Content-Type: application/json
   }
 }
 ```
+
+#### Example 2: Order Confirmation
+**Request:**
+```json
+{
+  "user_input": "After a customer places an order, send them a confirmation email with order details"
+}
+```
+
+**Response:**
+```json
+{
+  "trace_id": "550e8400-e29b-41d4-a716-446655440001",
+  "flow": {
+    "flow": {
+      "trigger": {
+        "event": "order_placed"
+      },
+      "actions": [
+        {
+          "action_type": "send_email",
+          "template_id": "confirmation",
+          "params": {
+            "first_name": "{{ user.user.name }}",
+            "user_email": "{{ user.user.email }}"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Example 3: Reminder Email
+**Request:**
+```json
+{
+  "user_input": "Send a reminder email to users who haven't completed their profile"
+}
+```
+
+**Response:**
+```json
+{
+  "trace_id": "550e8400-e29b-41d4-a716-446655440002",
+  "flow": {
+    "flow": {
+      "trigger": {
+        "event": "user_signup"
+      },
+      "actions": [
+        {
+          "action_type": "send_email",
+          "template_id": "reminder",
+          "params": {
+            "first_name": "{{ user.user.name }}",
+            "user_email": "{{ user.user.email }}"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Field Mapping
+
+The system automatically maps common field names to standardized output fields:
+
+| Input Field | Output Field |
+|-------------|--------------|
+| `name` | `first_name` |
+| `email` | `user_email` |
+| `signup_date` | `registration_date` |
+
+### Supported Triggers
+
+Common trigger events the system recognizes:
+- `user_signup` - When a new user registers
+- `order_placed` - When a customer places an order  
+- `payment_received` - When payment is processed
+- `profile_updated` - When user updates their profile
+- `subscription_started` - When user subscribes to a service
+
+### Supported Templates
+
+Common email templates the system generates:
+- `welcome` - Welcome emails for new users
+- `confirmation` - Order/action confirmations
+- `reminder` - Reminder notifications
+- `notification` - General notifications
+- `alert` - Important alerts
+
+### Error Responses
+
+#### 422 Validation Error
+When the request payload is invalid:
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "user_input"],
+      "msg": "ensure this value has at least 1 characters",
+      "type": "value_error.any_str.min_length",
+      "ctx": {"limit_value": 1}
+    }
+  ]
+}
+```
+
+#### 500 Internal Server Error
+When processing fails:
+```json
+{
+  "detail": "Processing failed: Error description here"
+}
+```
+
+### Browser Testing
+
+For quick testing without curl, you can use your browser:
+
+1. **Default example**: Visit `http://localhost:8000/parse-request`
+2. **Custom input**: Visit `http://localhost:8000/parse-request?user_input=Your automation request here`
+3. **Interactive docs**: Visit `http://localhost:8000/docs` to test via Swagger UI
+
+### Tips for Better Results
+
+1. **Be specific about triggers**: Instead of "when something happens", use "when a user signs up" or "when an order is placed"
+
+2. **Include field details**: Mention what information should be included (name, email, date, etc.)
+
+3. **Specify the action**: Clearly state what should happen (send email, create task, etc.)
+
+4. **Good examples**:
+   - ✅ "When a new user registers, send a welcome email with their name and registration date"
+   - ✅ "After a customer completes a purchase, send an order confirmation with order details"
+   - ❌ "Do something when stuff happens"
 
 ## Testing
 
