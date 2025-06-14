@@ -329,7 +329,7 @@ For quick testing without curl, you can use your browser:
 Run tests with:
 ```bash
 # Install test dependencies (if not already installed)
-pip install pytest httpx
+pip install pytest httpx pytest-asyncio
 
 # Run tests
 pytest tests/
