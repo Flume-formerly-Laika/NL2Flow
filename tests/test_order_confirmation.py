@@ -3,11 +3,14 @@ Test script to verify the order confirmation example works correctly
 """
 
 import json
+import pytest
 import asyncio
 from app.gpt_handler import extract_intent
 from app.transformer import build_flow_json
 from app.utils.validator import validate_flow
 
+
+@pytest.mark.asyncio
 async def test_order_confirmation():
     """Test the order confirmation example"""
     
@@ -48,6 +51,8 @@ async def test_order_confirmation():
         import traceback
         traceback.print_exc()
 
+
+@pytest.mark.asyncio
 async def test_fallback_scenario():
     """Test with a fallback scenario (simulating API failure)"""
     
