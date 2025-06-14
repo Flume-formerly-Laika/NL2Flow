@@ -84,7 +84,7 @@ async def extract_intent(user_input: str) -> dict:
         client = get_openai_client()
         
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o-mini",  # Changed from "gpt-4-turbo" to "gpt-4o-mini"
             messages=build_prompt(user_input),
             temperature=0.2,
             max_tokens=500
