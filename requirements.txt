@@ -8,3 +8,4 @@ pyke
 python-dotenv
 pytest
 httpx
+pytest-asyncio
