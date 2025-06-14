@@ -13,8 +13,7 @@ pytest-asyncio
 # New dependencies for Week 2
 scrapy
 boto3
-deepdiff
-google-diff-match-patch
+diff-match-patch
 beautifulsoup4
 requests
 lxml
