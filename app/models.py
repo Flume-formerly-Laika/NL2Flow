@@ -23,12 +23,26 @@ class NLRequest(BaseModel):
 
 class FlowResponse(BaseModel):
     """
-    For responses.
-
-    Attributes:
-        trace_id: given id
-
-        flow: the flow
+    /**
+     * @class FlowResponse
+     * @brief Pydantic model for API response validation
+     * @details Ensures responses contain both trace ID and flow structure
+     */
     """
     trace_id: str
+    """
+    /**
+     * @var trace_id
+     * @brief Unique identifier for request tracking
+     * @type str
+     */
+    """
+    
     flow: Dict[str, Any]
+    """
+    /**
+     * @var flow
+     * @brief The generated automation flow structure
+     * @type Dict[str, Any]
+     */
+    """
