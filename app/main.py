@@ -8,6 +8,9 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 import os
+import logging
+import json
+import requests
 
 # import models for request payload
 from app.models import NLRequest
@@ -25,7 +28,7 @@ from app.utils.logger import log_request
 from app.utils.validator import validate_flow
 
 # import API doc scraper
-from app.api_doc_scraper import scrape_openapi, scrape_html_doc
+from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction
 
 app = FastAPI(
     title="NL2Flow API",
@@ -185,6 +188,9 @@ async def parse_request_get(user_input: str = "When a new user signs up, send a 
 async def scrape_openapi_endpoint(request: Request):
     """
     Scrape OpenAPI/Swagger documentation from a URL
+    
+    DEBUG: This endpoint extracts endpoints, methods, auth types, and schemas from OpenAPI specs.
+    Common issues: CORS, invalid JSON, missing security schemes, schema references.
     """
     try:
         body = await request.json()
@@ -192,45 +198,67 @@ async def scrape_openapi_endpoint(request: Request):
         if not openapi_url:
             raise HTTPException(status_code=400, detail="openapi_url is required")
         
+        # DEBUG: Log the request
+        logging.debug(f"Scraping OpenAPI from: {openapi_url}")
+        
         trace_id = log_request(request, f"Scraping OpenAPI: {openapi_url}")
         endpoints = scrape_openapi(openapi_url)
+        
+        # Validate extraction quality
+        validation = validate_schema_extraction(endpoints)
         
         return {
             "trace_id": trace_id,
             "openapi_url": openapi_url,
             "endpoints_count": len(endpoints),
+            "extraction_quality": validation,
             "endpoints": endpoints
         }
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error scraping OpenAPI: {e}")
+        raise HTTPException(status_code=400, detail=f"Network error: {str(e)}")
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON in OpenAPI spec: {e}")
+        raise HTTPException(status_code=400, detail="Invalid OpenAPI JSON specification")
     except Exception as e:
+        logging.error(f"OpenAPI scraping failed: {e}")
         raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 @app.get("/scrape-openapi")
 async def scrape_openapi_get(openapi_url: str = "https://shopify.dev/api/admin-rest/2023-10/openapi.json"):
     """
-    GET version of scrape-openapi for easy browser testing
+    Browser-friendly OpenAPI scraper with default example
+    
+    DEBUG: This endpoint provides a simple way to test OpenAPI scraping in the browser.
+    The default URL is Shopify's OpenAPI spec which is well-structured and public.
     """
-    class MockRequest:
-        def __init__(self):
-            self.url = type('obj', (object,), {'path': '/scrape-openapi'})
-    
-    mock_request = MockRequest()
-    trace_id = log_request(mock_request, f"Scraping OpenAPI: {openapi_url}")
-    
     try:
+        # DEBUG: Log the request
+        logging.debug(f"GET request scraping OpenAPI from: {openapi_url}")
+        
         endpoints = scrape_openapi(openapi_url)
+        
+        # Validate extraction quality
+        validation = validate_schema_extraction(endpoints)
+        
         return {
-            "trace_id": trace_id,
             "openapi_url": openapi_url,
             "endpoints_count": len(endpoints),
-            "endpoints": endpoints[:10]  # Show first 10 endpoints for browser display
+            "extraction_quality": validation,
+            "endpoints": endpoints[:10],  # Show first 10 for browser display
+            "debug_tip": "Use POST /scrape-openapi for full results or debug_schema_extraction() for detailed analysis"
         }
     except Exception as e:
+        logging.error(f"OpenAPI scraping failed: {e}")
         raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 @app.post("/scrape-html")
 async def scrape_html_endpoint(request: Request):
     """
     Scrape HTML API documentation from a URL
+    
+    DEBUG: This endpoint extracts endpoints from HTML documentation pages.
+    Common issues: No structured data, missing tables/code blocks, JavaScript-rendered content.
     """
     try:
         body = await request.json()
@@ -238,39 +266,55 @@ async def scrape_html_endpoint(request: Request):
         if not doc_url:
             raise HTTPException(status_code=400, detail="doc_url is required")
         
+        # DEBUG: Log the request
+        logging.debug(f"Scraping HTML from: {doc_url}")
+        
         trace_id = log_request(request, f"Scraping HTML: {doc_url}")
         endpoints = scrape_html_doc(doc_url)
+        
+        # Validate extraction quality
+        validation = validate_schema_extraction(endpoints)
         
         return {
             "trace_id": trace_id,
             "doc_url": doc_url,
             "endpoints_count": len(endpoints),
+            "extraction_quality": validation,
             "endpoints": endpoints
         }
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error scraping HTML: {e}")
+        raise HTTPException(status_code=400, detail=f"Network error: {str(e)}")
     except Exception as e:
+        logging.error(f"HTML scraping failed: {e}")
         raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 @app.get("/scrape-html")
 async def scrape_html_get(doc_url: str = "https://developers.google.com/gmail/api/reference/rest"):
     """
-    GET version of scrape-html for easy browser testing
+    Browser-friendly HTML scraper with default example
+    
+    DEBUG: This endpoint provides a simple way to test HTML scraping in the browser.
+    The default URL is Gmail's API reference which has structured documentation.
     """
-    class MockRequest:
-        def __init__(self):
-            self.url = type('obj', (object,), {'path': '/scrape-html'})
-    
-    mock_request = MockRequest()
-    trace_id = log_request(mock_request, f"Scraping HTML: {doc_url}")
-    
     try:
+        # DEBUG: Log the request
+        logging.debug(f"GET request scraping HTML from: {doc_url}")
+        
         endpoints = scrape_html_doc(doc_url)
+        
+        # Validate extraction quality
+        validation = validate_schema_extraction(endpoints)
+        
         return {
-            "trace_id": trace_id,
             "doc_url": doc_url,
             "endpoints_count": len(endpoints),
-            "endpoints": endpoints[:10]  # Show first 10 endpoints for browser display
+            "extraction_quality": validation,
+            "endpoints": endpoints[:10],  # Show first 10 for browser display
+            "debug_tip": "HTML scraping is best-effort. For better results, use OpenAPI specs when available."
         }
     except Exception as e:
+        logging.error(f"HTML scraping failed: {e}")
         raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 @app.get("/favicon.ico", include_in_schema=False)

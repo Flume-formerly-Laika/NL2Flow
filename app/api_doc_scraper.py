@@ -26,6 +26,7 @@ from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
 import json
 import logging
+import re
 
 # --- Structured API (OpenAPI/Swagger) Scraper ---
 def scrape_openapi(openapi_url: str) -> List[Dict[str, Any]]:
@@ -423,7 +424,6 @@ def _extract_html_output_schema(line: str, tag) -> Dict[str, Any]:
         }
     
     # Check for specific status codes
-    import re
     status_codes = re.findall(r'(\d{3})', parent_text)
     if status_codes:
         return {
@@ -459,4 +459,146 @@ if __name__ == '__main__':
     # print('--- Gmail HTML Endpoints ---')
     # endpoints = scrape_html_doc(gmail_html)
     # for ep in endpoints[:5]:
-    #     print(json.dumps(ep, indent=2)) 
+    #     print(json.dumps(ep, indent=2))
+
+# --- Debugging Tips and Utilities ---
+def debug_schema_extraction(openapi_url: str, endpoint_path: str = None, method: str = None):
+    """
+    Debug utility to help troubleshoot schema extraction issues.
+    
+    DEBUG: Use this function to inspect what's happening during schema extraction
+    for a specific endpoint or the entire OpenAPI spec.
+    
+    Args:
+        openapi_url (str): URL to the OpenAPI spec
+        endpoint_path (str, optional): Specific path to debug
+        method (str, optional): Specific HTTP method to debug
+    """
+    print(f"🔍 DEBUGGING: {openapi_url}")
+    print("=" * 50)
+    
+    # Set up detailed logging
+    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
+    
+    try:
+        # Fetch the spec
+        resp = requests.get(openapi_url)
+        resp.raise_for_status()
+        spec = resp.json()
+        
+        print(f"✅ OpenAPI spec loaded successfully")
+        print(f"📊 Spec version: {spec.get('openapi', 'unknown')}")
+        print(f"🛣️  Total paths: {len(spec.get('paths', {}))}")
+        
+        # Check auth
+        auth_type = _extract_openapi_auth(spec)
+        print(f"🔐 Auth type: {auth_type}")
+        
+        # If specific endpoint requested, debug it
+        if endpoint_path and method:
+            path_data = spec.get('paths', {}).get(endpoint_path, {})
+            method_data = path_data.get(method.lower(), {})
+            
+            if method_data:
+                print(f"\n🎯 Debugging {method.upper()} {endpoint_path}:")
+                print(f"📥 Input schema: {json.dumps(_extract_input_schema(method_data, spec), indent=2)}")
+                print(f"📤 Output schema: {json.dumps(_extract_output_schema(method_data, spec), indent=2)}")
+            else:
+                print(f"❌ Endpoint {method.upper()} {endpoint_path} not found")
+        
+        # Show first few endpoints as examples
+        print(f"\n📋 First 3 endpoints:")
+        endpoints = scrape_openapi(openapi_url)
+        for i, ep in enumerate(endpoints[:3]):
+            print(f"\n{i+1}. {ep['method']} {ep['path']}")
+            print(f"   Auth: {ep['auth_type']}")
+            print(f"   Input: {ep['input_schema'].get('type', 'unknown')}")
+            print(f"   Output: {ep['output_schema'].get('type', 'unknown')}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("\n💡 Debugging tips:")
+        print("1. Check if the URL is accessible")
+        print("2. Verify it's a valid OpenAPI JSON spec")
+        print("3. Check network connectivity")
+        print("4. Try with a different OpenAPI spec URL")
+
+def validate_schema_extraction(endpoints: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Validates the quality of schema extraction and provides feedback.
+    
+    DEBUG: Use this function to check if your schema extraction is working properly
+    and identify areas for improvement.
+    
+    Args:
+        endpoints (List[Dict[str, Any]]): List of extracted endpoints
+        
+    Returns:
+        Dict[str, Any]: Validation report with statistics and recommendations
+    """
+    total_endpoints = len(endpoints)
+    if total_endpoints == 0:
+        return {"status": "error", "message": "No endpoints found"}
+    
+    # Count schema quality
+    auth_with_value = sum(1 for ep in endpoints if ep.get('auth_type') and ep['auth_type'] != 'none')
+    input_with_schema = sum(1 for ep in endpoints if ep.get('input_schema', {}).get('type') not in ['none', 'unknown'])
+    output_with_schema = sum(1 for ep in endpoints if ep.get('output_schema', {}).get('type') not in ['none', 'unknown'])
+    
+    # Calculate percentages
+    auth_percentage = (auth_with_value / total_endpoints) * 100
+    input_percentage = (input_with_schema / total_endpoints) * 100
+    output_percentage = (output_with_schema / total_endpoints) * 100
+    
+    # Generate recommendations
+    recommendations = []
+    if auth_percentage < 50:
+        recommendations.append("🔐 Low auth detection - check if OpenAPI spec has security schemes defined")
+    if input_percentage < 50:
+        recommendations.append("📥 Low input schema extraction - check request body definitions")
+    if output_percentage < 50:
+        recommendations.append("📤 Low output schema extraction - check response definitions")
+    
+    return {
+        "status": "success",
+        "total_endpoints": total_endpoints,
+        "auth_detection_rate": f"{auth_percentage:.1f}%",
+        "input_schema_rate": f"{input_percentage:.1f}%",
+        "output_schema_rate": f"{output_percentage:.1f}%",
+        "recommendations": recommendations
+    }
+
+# --- Common Issues and Solutions ---
+"""
+🔧 COMMON DEBUGGING ISSUES AND SOLUTIONS:
+
+1. ❌ "auth_type is null"
+   ✅ Solution: Check if OpenAPI spec has 'components.securitySchemes' defined
+   ✅ Debug: Use debug_schema_extraction() to inspect the spec
+
+2. ❌ "input_schema is null" 
+   ✅ Solution: Check if endpoints have 'requestBody' with 'content' and 'schema'
+   ✅ Debug: Look for $ref pointers that need resolution
+
+3. ❌ "output_schema is null"
+   ✅ Solution: Check if responses have 'content' with 'application/json' schema
+   ✅ Debug: Verify response status codes (200, 201, etc.) are defined
+
+4. ❌ "HTML scraping returns empty results"
+   ✅ Solution: Check if HTML has proper structure (tables, code blocks)
+   ✅ Debug: Verify the URL is accessible and contains API documentation
+
+5. ❌ "Schema references not resolved"
+   ✅ Solution: Ensure $ref paths are correct (e.g., '#/components/schemas/Model')
+   ✅ Debug: Check if referenced schemas exist in components/schemas
+
+6. ❌ "Network errors"
+   ✅ Solution: Check URL accessibility, CORS, and network connectivity
+   ✅ Debug: Try with a different OpenAPI spec URL
+
+💡 PRO TIPS:
+- Use debug_schema_extraction() for detailed inspection
+- Use validate_schema_extraction() to check extraction quality
+- Enable DEBUG logging to see step-by-step extraction process
+- Test with well-known OpenAPI specs first (Shopify, Stripe, etc.)
+""" 
