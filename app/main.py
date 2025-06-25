@@ -24,9 +24,12 @@ from app.utils.logger import log_request
 # import validator for validating the flow against JSON schema
 from app.utils.validator import validate_flow
 
+# import API doc scraper
+from app.api_doc_scraper import scrape_openapi, scrape_html_doc
+
 app = FastAPI(
     title="NL2Flow API",
-    description="Natural Language to Automation Flow Generator",
+    description="Natural Language to Automation Flow Generator with API Documentation Scraper",
     version="1.0.0"
 ) # main FastAPI application instance
 
@@ -73,6 +76,40 @@ async def root():
                     <p><a href="/parse-request">Try with default example</a></p>
                     <div class="example">
                     http://localhost:8000/parse-request?user_input=Your request here
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">POST</span> <strong>/scrape-openapi</strong> - Scrape OpenAPI/Swagger documentation</p>
+                    <div class="example">
+                    {
+                        "openapi_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+                    }
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">POST</span> <strong>/scrape-html</strong> - Scrape HTML API documentation</p>
+                    <div class="example">
+                    {
+                        "doc_url": "https://developers.google.com/gmail/api/reference/rest"
+                    }
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/scrape-openapi</strong> - Browser-friendly OpenAPI scraper</p>
+                    <p><a href="/scrape-openapi">Try with default example</a></p>
+                    <div class="example">
+                    http://localhost:8000/scrape-openapi?openapi_url=https://shopify.dev/api/admin-rest/2023-10/openapi.json
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/scrape-html</strong> - Browser-friendly HTML scraper</p>
+                    <p><a href="/scrape-html">Try with default example</a></p>
+                    <div class="example">
+                    http://localhost:8000/scrape-html?doc_url=https://developers.google.com/gmail/api/reference/rest
                     </div>
                 </div>
                 
@@ -143,6 +180,98 @@ async def parse_request_get(user_input: str = "When a new user signs up, send a 
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
     return {"trace_id": trace_id, "flow": flow_json}
+
+@app.post("/scrape-openapi")
+async def scrape_openapi_endpoint(request: Request):
+    """
+    Scrape OpenAPI/Swagger documentation from a URL
+    """
+    try:
+        body = await request.json()
+        openapi_url = body.get("openapi_url")
+        if not openapi_url:
+            raise HTTPException(status_code=400, detail="openapi_url is required")
+        
+        trace_id = log_request(request, f"Scraping OpenAPI: {openapi_url}")
+        endpoints = scrape_openapi(openapi_url)
+        
+        return {
+            "trace_id": trace_id,
+            "openapi_url": openapi_url,
+            "endpoints_count": len(endpoints),
+            "endpoints": endpoints
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+
+@app.get("/scrape-openapi")
+async def scrape_openapi_get(openapi_url: str = "https://shopify.dev/api/admin-rest/2023-10/openapi.json"):
+    """
+    GET version of scrape-openapi for easy browser testing
+    """
+    class MockRequest:
+        def __init__(self):
+            self.url = type('obj', (object,), {'path': '/scrape-openapi'})
+    
+    mock_request = MockRequest()
+    trace_id = log_request(mock_request, f"Scraping OpenAPI: {openapi_url}")
+    
+    try:
+        endpoints = scrape_openapi(openapi_url)
+        return {
+            "trace_id": trace_id,
+            "openapi_url": openapi_url,
+            "endpoints_count": len(endpoints),
+            "endpoints": endpoints[:10]  # Show first 10 endpoints for browser display
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+
+@app.post("/scrape-html")
+async def scrape_html_endpoint(request: Request):
+    """
+    Scrape HTML API documentation from a URL
+    """
+    try:
+        body = await request.json()
+        doc_url = body.get("doc_url")
+        if not doc_url:
+            raise HTTPException(status_code=400, detail="doc_url is required")
+        
+        trace_id = log_request(request, f"Scraping HTML: {doc_url}")
+        endpoints = scrape_html_doc(doc_url)
+        
+        return {
+            "trace_id": trace_id,
+            "doc_url": doc_url,
+            "endpoints_count": len(endpoints),
+            "endpoints": endpoints
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+
+@app.get("/scrape-html")
+async def scrape_html_get(doc_url: str = "https://developers.google.com/gmail/api/reference/rest"):
+    """
+    GET version of scrape-html for easy browser testing
+    """
+    class MockRequest:
+        def __init__(self):
+            self.url = type('obj', (object,), {'path': '/scrape-html'})
+    
+    mock_request = MockRequest()
+    trace_id = log_request(mock_request, f"Scraping HTML: {doc_url}")
+    
+    try:
+        endpoints = scrape_html_doc(doc_url)
+        return {
+            "trace_id": trace_id,
+            "doc_url": doc_url,
+            "endpoints_count": len(endpoints),
+            "endpoints": endpoints[:10]  # Show first 10 endpoints for browser display
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
