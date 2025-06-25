@@ -9,6 +9,7 @@
 import os
 import logging
 import json
+import re
 import google.generativeai as genai
 
 SYSTEM_PROMPT = """You are an AI that extracts structured automation flows from user requests.
@@ -44,12 +45,22 @@ def get_gemini_client():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key or api_key == "your-google-api-key-here":
         raise ValueError("Google API key not configured. Please set GOOGLE_API_KEY in your .env file")
-    model_name = os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(model_name)
 
 def build_prompt(user_input: str) -> str:
     return f"{SYSTEM_PROMPT}\nConvert this request to automation flow: {user_input}"
+
+def extract_json_from_markdown(content: str) -> str:
+    """
+    Extract JSON from markdown code blocks if present.
+    """
+    # Remove markdown code block markers
+    content = re.sub(r'```json\s*', '', content)
+    content = re.sub(r'```\s*$', '', content)
+    content = content.strip()
+    return content
 
 async def extract_intent(user_input: str) -> dict:
     try:
@@ -57,8 +68,12 @@ async def extract_intent(user_input: str) -> dict:
         prompt = build_prompt(user_input)
         response = model.generate_content(prompt)
         content = response.text.strip()
+        
+        # Extract JSON from markdown if present
+        json_content = extract_json_from_markdown(content)
+        
         try:
-            result = json.loads(content)
+            result = json.loads(json_content)
             logging.info(f"Successfully parsed Gemini response: {result}")
             # (same validation/fallback logic as before)
             if not isinstance(result, dict):
