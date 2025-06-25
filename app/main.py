@@ -6,7 +6,8 @@
 
 # import fastapi for creating the API, request handling, and HTTP exceptions
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+import os
 
 # import models for request payload
 from app.models import NLRequest
@@ -142,3 +143,8 @@ async def parse_request_get(user_input: str = "When a new user signs up, send a 
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
     return {"trace_id": trace_id, "flow": flow_json}
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    favicon_path = os.path.join(os.path.dirname(__file__), "static", "favicon.ico")
+    return FileResponse(favicon_path)
