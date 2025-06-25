@@ -44,7 +44,7 @@ def get_gemini_client():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key or api_key == "your-google-api-key-here":
         raise ValueError("Google API key not configured. Please set GOOGLE_API_KEY in your .env file")
-    model_name = os.getenv("GEMINI_MODEL", "models/gemini-pro")
+    model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5")
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(model_name)
 
