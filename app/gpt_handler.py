@@ -1,34 +1,17 @@
 """
 /**
  * @file gpt_handler.py
- * @brief Handles GPT API interactions for extracting structured automation flows
+ * @brief Handles Gemini API interactions for extracting structured automation flows
  * @author Huy Le (huyisme-005)
  */
 """
 
-# OpenAI library for interacting with GPT models and making API calls
-from openai import OpenAI
 import os
 import logging
-
-# JSON library for parsing and handling JSON data from GPT responses
 import json
+import google.generativeai as genai
 
-# Initialize OpenAI client
-def get_openai_client():
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or api_key == "your_openai_api_key_here":
-        raise ValueError("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file")
-    return OpenAI(api_key=api_key)
-
-"""
-/**
- * @var SYSTEM_PROMPT
- * @brief System prompt used to instruct the GPT model
- * @type str
- */
-"""
-SYSTEM_PROMPT = """You are an AI that extracts structured automation flows from user requests. 
+SYSTEM_PROMPT = """You are an AI that extracts structured automation flows from user requests.
 Return ONLY a valid JSON object with this exact structure:
 {
   "trigger": "trigger_event_name",
@@ -43,7 +26,6 @@ Return ONLY a valid JSON object with this exact structure:
     }
   ]
 }
-
 Important rules:
 - Always return valid JSON
 - Use common field names like name, email, signup_date, order_id, etc.
@@ -55,64 +37,39 @@ Important rules:
   * profile_updated - when users update profiles
   * subscription_started - when users subscribe
 - Always include at least name and email fields
-- For order-related requests, also include order-related fields"""
+- For order-related requests, also include order-related fields
+"""
 
-def build_prompt(user_input: str) -> list:
-    """
-    /**
-     * @brief Builds the prompt structure for GPT API
-     * @param user_input The user's input text to process
-     * @return list A list of message dictionaries containing system and user prompts
-     * @throws None
-     */
-    """
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Convert this request to automation flow: {user_input}"}
-    ]
+def get_gemini_client():
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key or api_key == "your-google-api-key-here":
+        raise ValueError("Google API key not configured. Please set GOOGLE_API_KEY in your .env file")
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel("gemini-pro")
+
+def build_prompt(user_input: str) -> str:
+    return f"{SYSTEM_PROMPT}\nConvert this request to automation flow: {user_input}"
 
 async def extract_intent(user_input: str) -> dict:
-    """
-    /**
-     * @brief Extracts structured automation flow from user input using GPT
-     * @param user_input The user's input text to process
-     * @return dict The structured automation flow extracted from the input
-     * @throws Exception If there's an error in API call or response parsing
-     */
-    """
     try:
-        client = get_openai_client()
-        
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Changed from "gpt-4-turbo" to "gpt-4o-mini"
-            messages=build_prompt(user_input),
-            temperature=0.2,
-            max_tokens=500
-        )
-        
-        content = response.choices[0].message.content.strip()
-        
-        # Try to parse JSON
+        model = get_gemini_client()
+        prompt = build_prompt(user_input)
+        response = model.generate_content(prompt)
+        content = response.text.strip()
         try:
             result = json.loads(content)
-            logging.info(f"Successfully parsed GPT response: {result}")
-            
-            # Validate the structure and provide defaults if needed
+            logging.info(f"Successfully parsed Gemini response: {result}")
+            # (same validation/fallback logic as before)
             if not isinstance(result, dict):
                 raise ValueError("Response is not a dictionary")
-            
-            # Ensure we have required fields
             if "trigger" not in result:
                 result["trigger"] = "user_signup"
-            
             if "actions" not in result or not result["actions"]:
                 result["actions"] = [{
                     "type": "send_email",
                     "template": "notification",
                     "fields": {"name": "user.name", "email": "user.email"}
                 }]
-            
-            # Ensure first action has required fields
             first_action = result["actions"][0]
             if "type" not in first_action:
                 first_action["type"] = "send_email"
@@ -120,33 +77,22 @@ async def extract_intent(user_input: str) -> dict:
                 first_action["template"] = "notification"
             if "fields" not in first_action:
                 first_action["fields"] = {"name": "user.name", "email": "user.email"}
-            
             return result
-            
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse GPT response as JSON: {content}")
-            raise ValueError(f"GPT returned invalid JSON: {str(e)}")
-            
-    except ValueError:
-        # Re-raise ValueError (API key issues, JSON parsing)
-        raise
+            logging.error(f"Failed to parse Gemini response as JSON: {content}")
+            raise ValueError(f"Gemini returned invalid JSON: {str(e)}")
     except Exception as e:
-        logging.error(f"GPT API call failed: {str(e)}")
-        # Fallback response if API fails
-        logging.info("Using fallback response due to API failure")
-        
-        # Create a context-aware fallback based on user input
+        logging.error(f"Gemini API call failed: {str(e)}")
+        # (same fallback as before)
         fallback_trigger = "user_signup"
         fallback_template = "welcome"
         fallback_fields = {"name": "user.name", "email": "user.email"}
-        
-        # Simple keyword detection for better fallbacks
         user_lower = user_input.lower()
         if any(word in user_lower for word in ["order", "purchase", "buy", "customer"]):
             fallback_trigger = "order_placed"
             fallback_template = "confirmation"
             fallback_fields = {
-                "name": "user.name", 
+                "name": "user.name",
                 "email": "user.email",
                 "order_id": "order.id"
             }
@@ -154,7 +100,6 @@ async def extract_intent(user_input: str) -> dict:
             fallback_template = "reminder"
         elif any(word in user_lower for word in ["confirm", "confirmation"]):
             fallback_template = "confirmation"
-        
         return {
             "trigger": fallback_trigger,
             "actions": [
