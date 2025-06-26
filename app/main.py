@@ -11,6 +11,7 @@ import os
 import logging
 import json
 import requests
+from pydantic import BaseModel
 
 # import models for request payload
 from app.models import NLRequest
@@ -35,6 +36,9 @@ app = FastAPI(
     description="Natural Language to Automation Flow Generator with API Documentation Scraper",
     version="1.0.0"
 ) # main FastAPI application instance
+
+class OpenAPIRequest(BaseModel):
+    openapi_url: str
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -185,7 +189,7 @@ async def parse_request_get(user_input: str = "When a new user signs up, send a 
     return {"trace_id": trace_id, "flow": flow_json}
 
 @app.post("/scrape-openapi")
-async def scrape_openapi_endpoint(request: Request):
+async def scrape_openapi_endpoint(payload: OpenAPIRequest, request: Request):
     """
     Scrape OpenAPI/Swagger documentation from a URL
     
@@ -198,8 +202,7 @@ async def scrape_openapi_endpoint(request: Request):
     - Use /scrape-html for HTML documentation pages.
     """
     try:
-        body = await request.json()
-        openapi_url = body.get("openapi_url")
+        openapi_url = payload.openapi_url
         if not openapi_url:
             raise HTTPException(status_code=400, detail="openapi_url is required")
         # Shopify auto-correction: convert /docs/ to /api/ if needed
