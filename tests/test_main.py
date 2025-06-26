@@ -7,10 +7,18 @@
 """
 
 from fastapi.testclient import TestClient
-
+import logging
+import json
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../app'))
+from app.api_doc_scraper import (
+    scrape_openapi, 
+    scrape_html_doc, 
+    debug_schema_extraction, 
+    validate_schema_extraction
+)
 from app.main import app
-
-
 
 client = TestClient(app)
 
@@ -33,7 +41,9 @@ def test_health():
      */
     """
 
+    logging.info("Running test_health")
     r = client.get("/health")
+    logging.info("Response: %s", json.dumps(r.json(), indent=2))
     assert r.status_code == 200 and r.json() == {"status": "ok", "message": "NL2Flow API is running"}
 
 def test_parse_missing_fields():
@@ -47,8 +57,9 @@ def test_parse_missing_fields():
      */
     """
 
+    logging.info("Running test_parse_missing_fields")
     r = client.post("/parse-request", json={"user_input": ""})
-    
+    logging.info("Response: %s", json.dumps(r.json(), indent=2))
     assert r.status_code == 422
 
 def test_parse_valid_input():
@@ -60,7 +71,62 @@ def test_parse_valid_input():
      * @details Verifies that valid user input returns 200 status with trace_id and flow
      */
     """
+    logging.info("Running test_parse_valid_input")
     r = client.post("/parse-request", json={"user_input": "Send welcome email"})
+    logging.info("Response: %s", json.dumps(r.json(), indent=2))
     assert r.status_code == 200
     assert "trace_id" in r.json()
     assert "flow" in r.json()
+
+def test_openapi_scraping():
+    shopify_url = "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+    endpoints = scrape_openapi(shopify_url)
+    assert isinstance(endpoints, list)
+    assert len(endpoints) > 0
+    validation = validate_schema_extraction(endpoints)
+    assert validation["status"] == "success"
+
+def test_html_scraping():
+    test_url = "https://httpbin.org/json"
+    endpoints = scrape_html_doc(test_url)
+    assert isinstance(endpoints, list)
+    validation = validate_schema_extraction(endpoints)
+    assert "status" in validation
+
+def test_debug_function():
+    test_url = "https://petstore.swagger.io/v2/swagger.json"
+    # This just checks that the debug function runs without error
+    try:
+        debug_schema_extraction(test_url)
+    except Exception as e:
+        assert False, f"debug_schema_extraction raised an exception: {e}"
+
+def test_schema_validation():
+    sample_endpoints = [
+        {
+            'method': 'GET',
+            'path': '/users',
+            'auth_type': 'bearer_token',
+            'input_schema': {'type': 'none'},
+            'output_schema': {'type': 'json', 'status_code': '200'}
+        },
+        {
+            'method': 'POST',
+            'path': '/users',
+            'auth_type': 'none',
+            'input_schema': {'type': 'unknown'},
+            'output_schema': {'type': 'unknown'}
+        },
+        {
+            'method': 'PUT',
+            'path': '/users/{id}',
+            'auth_type': 'api_key',
+            'input_schema': {'type': 'json'},
+            'output_schema': {'type': 'json', 'status_code': '200'}
+        }
+    ]
+    validation = validate_schema_extraction(sample_endpoints)
+    assert validation["total_endpoints"] == 3
+    assert "auth_detection_rate" in validation
+    assert "input_schema_rate" in validation
+    assert "output_schema_rate" in validation
