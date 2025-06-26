@@ -21,6 +21,7 @@ from app.api_doc_scraper import (
 )
 from app.main import app
 from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
+from app.utils.schema_diff import diff_schema_versions
 
 client = TestClient(app)
 
@@ -172,3 +173,36 @@ def test_schema_snapshot_endpoint():
     assert data["schema_json"] == schema
     assert data["auth_type"] == metadata["auth_type"]
     assert data["source_url"] == metadata["source_url"]
+
+def test_schema_diff_engine():
+    old_schema = {
+        "id": "int",
+        "name": "string",
+        "address": {
+            "city": "string",
+            "zip": "string"
+        },
+        "tags": ["string"]
+    }
+    new_schema = {
+        "id": "int",
+        "name": "string",
+        "address": {
+            "city": "string",
+            "zip": "int",  # changed type
+            "country": "string"  # added
+        },
+        "tags": ["string", "int"],  # added type in list
+        "email": "string"  # added field
+    }
+    diff = diff_schema_versions(old_schema, new_schema)
+    # There should be at least one add, one remove, and one change
+    ops = [d["op"] for d in diff]
+    assert "add" in ops
+    assert "remove" not in ops  # nothing removed in this example
+    assert "change" in ops
+    # Check that nested change is detected
+    assert any(d["path"] == "address/zip" and d["op"] == "change" for d in diff)
+    # Check that added field is detected
+    assert any(d["path"] == "address/country" and d["op"] == "add" for d in diff)
+    assert any(d["path"] == "email" and d["op"] == "add" for d in diff)
