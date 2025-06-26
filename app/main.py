@@ -337,11 +337,23 @@ async def scrape_html_get(doc_url: str = "https://developers.google.com/gmail/ap
         # Validate extraction quality
         validation = validate_schema_extraction(endpoints)
         
-        # Shopify-specific formatting for HTML scraping
-        if "shopify.dev" in doc_url:
-            result = format_shopify_openapi(doc_url, endpoints)
+        # Shopify-specific formatting for HTML scraping (force for product resource URLs)
+        if "shopify.dev" in doc_url and "/admin-rest/" in doc_url and "/resources/product" in doc_url:
+            import re
+            m = re.search(r"/admin-rest/([\w-]+)/resources/product", doc_url)
+            version = m.group(1) if m else None
+            # Patch endpoint paths to use the version from the doc_url
+            patched_endpoints = []
+            for ep in endpoints:
+                patched_ep = ep.copy()
+                if version and '/products.json' in ep.get('path', ''):
+                    patched_ep['path'] = f"/admin/api/{version}/products.json"
+                patched_endpoints.append(patched_ep)
+            # If no endpoints, create a default structure (optional, for robustness)
+            result = format_shopify_openapi(doc_url, patched_endpoints)
+            result["source_url"] = doc_url
             result["doc_url"] = doc_url
-            result["endpoints_count"] = len(endpoints)
+            result["endpoints_count"] = len(patched_endpoints)
             result["extraction_quality"] = validation
             result["debug_tip"] = "HTML scraping is best-effort. For better results, use OpenAPI specs when available."
             return result
