@@ -16,12 +16,13 @@ def store_schema_snapshot(api_name, endpoint, method, schema, metadata=None, tim
     Store a schema snapshot in DynamoDB with a versioned timestamp.
     """
     if timestamp is None:
+        import time
         timestamp = int(time.time())
     item = {
         "api_name": api_name,
         "endpoint": endpoint,
         "method": method.upper(),
-        "timestamp": timestamp,
+        "timestamp": str(timestamp),
         "schema": json.loads(json.dumps(schema), parse_float=Decimal),
         "metadata": metadata or {},
     }
@@ -46,7 +47,7 @@ def get_schema_by_version(api_name, timestamp, endpoint=None, method=None):
     """
     Retrieve a specific schema snapshot by API name and timestamp, optionally filtered by endpoint and method.
     """
-    key_expr = Key("api_name").eq(api_name) & Key("timestamp").eq(int(timestamp))
+    key_expr = Key("api_name").eq(api_name) & Key("timestamp").eq(str(timestamp))
     if endpoint:
         key_expr = key_expr & Key("endpoint").eq(endpoint)
     if method:
