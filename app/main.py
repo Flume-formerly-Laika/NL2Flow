@@ -337,6 +337,15 @@ async def scrape_html_get(doc_url: str = "https://developers.google.com/gmail/ap
         # Validate extraction quality
         validation = validate_schema_extraction(endpoints)
         
+        # Shopify-specific formatting for HTML scraping
+        if "shopify.dev" in doc_url:
+            result = format_shopify_openapi(doc_url, endpoints)
+            result["doc_url"] = doc_url
+            result["endpoints_count"] = len(endpoints)
+            result["extraction_quality"] = validation
+            result["debug_tip"] = "HTML scraping is best-effort. For better results, use OpenAPI specs when available."
+            return result
+        
         return {
             "doc_url": doc_url,
             "endpoints_count": len(endpoints),
