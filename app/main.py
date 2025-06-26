@@ -188,12 +188,28 @@ async def parse_request_get(user_input: str = "When a new user signs up, send a 
 async def scrape_openapi_endpoint(request: Request):
     """
     Scrape OpenAPI/Swagger documentation from a URL
+    
+    Debugging tips:
+    - Ensure the openapi_url is a direct link to a JSON spec (not an HTML doc page).
+    - For Shopify, the correct format is https://shopify.dev/api/admin-rest/<version>/openapi.json
+    - If you get a 404 error, check if the URL contains /docs/ instead of /api/ and auto-correct it.
+    - If you get a JSON decode error, the URL is likely not a JSON file.
+    - Use /scrape-html for HTML documentation pages.
     """
     try:
         body = await request.json()
         openapi_url = body.get("openapi_url")
         if not openapi_url:
             raise HTTPException(status_code=400, detail="openapi_url is required")
+        # Shopify auto-correction: convert /docs/ to /api/ if needed
+        if "shopify.dev" in openapi_url and "/docs/" in openapi_url:
+            openapi_url = openapi_url.replace("/docs/", "/api/")
+            # If the URL ends with /resources/product, replace with /openapi.json
+            if openapi_url.endswith("/resources/product"):
+                openapi_url = openapi_url.replace("/resources/product", "/openapi.json")
+        # If the user gives a versioned docs page, try to convert to openapi.json
+        if "shopify.dev" in openapi_url and openapi_url.endswith("/openapi.json") and "/docs/" in openapi_url:
+            openapi_url = openapi_url.replace("/docs/", "/api/")
         logging.debug(f"Scraping OpenAPI from: {openapi_url}")
         trace_id = log_request(request, f"Scraping OpenAPI: {openapi_url}")
         endpoints = scrape_openapi(openapi_url)

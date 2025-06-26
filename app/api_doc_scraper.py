@@ -19,6 +19,19 @@ Example usage:
     from app.api_doc_scraper import scrape_openapi, scrape_html_doc
     endpoints = scrape_openapi('https://api.example.com/openapi.json')
     html_endpoints = scrape_html_doc('https://api.example.com/docs')
+
+# --- Debugging Tips ---
+# 1. Always use a direct OpenAPI JSON URL for scrape_openapi (not an HTML doc page).
+#    For Shopify, use: https://shopify.dev/api/admin-rest/<version>/openapi.json
+#    (e.g., https://shopify.dev/api/admin-rest/2023-07/openapi.json)
+# 2. If you get a 404 error, check if the URL contains /docs/ instead of /api/.
+#    The code will auto-correct /docs/ to /api/ and /resources/product to /openapi.json for Shopify.
+# 3. If you get a JSON decode error, the URL is likely not a JSON file (it's probably HTML).
+# 4. Use scrape_html_doc for HTML documentation pages, but expect less structured results.
+# 5. For debugging, enable DEBUG logging to see step-by-step extraction process.
+# 6. Use debug_schema_extraction() for detailed inspection of OpenAPI extraction.
+# 7. If you encounter network errors, check your internet connection and the URL's accessibility.
+# 8. For best results, always prefer official OpenAPI JSON specs over HTML docs.
 """
 
 import requests
