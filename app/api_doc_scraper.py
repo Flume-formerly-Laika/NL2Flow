@@ -332,6 +332,23 @@ def scrape_html_doc(doc_url: str) -> List[Dict[str, Any]]:
                     }
                     endpoints.append(endpoint)
     
+    # Shopify-specific fallback: If no endpoints found and this is a Shopify admin-rest product resource page, fetch OpenAPI JSON and extract product endpoints
+    if not endpoints and "shopify.dev" in doc_url and "/admin-rest/" in doc_url and "/resources/product" in doc_url:
+        import re
+        m = re.search(r"/admin-rest/([\w-]+)/resources/product", doc_url)
+        if m:
+            version = m.group(1)
+            openapi_url = f"https://shopify.dev/api/admin-rest/{version}/openapi.json"
+            try:
+                # Import locally to avoid circular import
+                from app.api_doc_scraper import scrape_openapi as _shopify_scrape_openapi
+                all_endpoints = _shopify_scrape_openapi(openapi_url)
+                # Only keep endpoints for /products.json
+                endpoints = [ep for ep in all_endpoints if ep.get('path', '').endswith('/products.json')]
+            except Exception as e:
+                logging.error(f"Shopify fallback OpenAPI scrape failed: {e}")
+                endpoints = []
+    
     # DEBUG: Log summary
     logging.debug(f"Extracted {len(endpoints)} endpoints from HTML")
     return endpoints
