@@ -1,6 +1,8 @@
 # Environment variables
 .env
 
+dynamodb-user_accessKeys.csv
+
 # Python cache
 env
 app/__pycache__
