@@ -94,7 +94,7 @@ async def root():
                     <p><span class="method">POST</span> <strong>/scrape-openapi</strong> - Scrape OpenAPI/Swagger documentation</p>
                     <div class="example">
                     {
-                        "openapi_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+                        "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
                     }
                     </div>
                 </div>
@@ -112,7 +112,7 @@ async def root():
                     <p><span class="method">GET</span> <strong>/scrape-openapi</strong> - Browser-friendly OpenAPI scraper</p>
                     <p><a href="/scrape-openapi">Try with default example</a></p>
                     <div class="example">
-                    http://localhost:8000/scrape-openapi?openapi_url=https://shopify.dev/api/admin-rest/2023-10/openapi.json
+                    http://localhost:8000/scrape-openapi?openapi_url=https://petstore.swagger.io/v2/swagger.json
                     </div>
                 </div>
 
@@ -292,12 +292,12 @@ async def scrape_openapi_endpoint(payload: OpenAPIRequest, request: Request):
         raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}.\n\nDebugging tips: If this is a Shopify URL, try using https://shopify.dev/api/admin-rest/latest/openapi.json. If the error persists, check your network connection and the URL's accessibility.")
 
 @app.get("/scrape-openapi")
-async def scrape_openapi_get(openapi_url: str = "https://shopify.dev/api/admin-rest/2023-10/openapi.json"):
+async def scrape_openapi_get(openapi_url: str = "https://petstore.swagger.io/v2/swagger.json"):
     """
     Browser-friendly OpenAPI scraper with default example
     
     DEBUG: This endpoint provides a simple way to test OpenAPI scraping in the browser.
-    The default URL is Shopify's OpenAPI spec which is well-structured and public.
+    The default URL is Swagger Petstore's OpenAPI spec which is well-structured and public.
     """
     try:
         # DEBUG: Log the request

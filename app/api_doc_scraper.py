@@ -474,11 +474,11 @@ if __name__ == '__main__':
     # Set up logging for debugging
     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
     
-    # Example: scrape Shopify OpenAPI
-    shopify_openapi = 'https://shopify.dev/api/admin-rest/2023-10/openapi.json'
-    print('--- Shopify OpenAPI Endpoints ---')
+    # Example: scrape Petstore OpenAPI
+    petstore_openapi = 'https://petstore.swagger.io/v2/swagger.json'
+    print('--- Petstore OpenAPI Endpoints ---')
     try:
-        endpoints = scrape_openapi(shopify_openapi)
+        endpoints = scrape_openapi(petstore_openapi)
         for ep in endpoints[:5]:  # Print first 5 for brevity
             print(json.dumps(ep, indent=2))
     except Exception as e:

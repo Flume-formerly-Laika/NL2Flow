@@ -96,12 +96,12 @@ The server runs on `http://localhost:8000`
 - **URL**: `POST /scrape-openapi`
 - **Purpose**: Extract endpoints from OpenAPI/Swagger JSON specs
 - **Content-Type**: `application/json`
-- **Body**: `{"openapi_url": "https://api.example.com/openapi.json"}`
+- **Body**: `{"openapi_url": "https://petstore.swagger.io/v2/swagger.json"}`
 
 #### 5. Scrape OpenAPI Documentation (GET)
 - **URL**: `GET /scrape-openapi`
 - **Purpose**: Browser-friendly OpenAPI scraper
-- **Query Parameter**: `openapi_url` (optional, defaults to Shopify API)
+- **Query Parameter**: `openapi_url` (optional, defaults to Petstore OpenAPI)
 
 #### 6. Scrape HTML Documentation (POST)
 - **URL**: `POST /scrape-html`
@@ -294,7 +294,7 @@ Extract endpoints, methods, authentication, and schemas from OpenAPI/Swagger JSO
 # POST request
 curl -X POST "http://localhost:8000/scrape-openapi" \
      -H "Content-Type: application/json" \
-     -d '{"openapi_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"}'
+     -d '{"openapi_url": "https://petstore.swagger.io/v2/swagger.json"}'
 
 # GET request (browser-friendly)
 curl "http://localhost:8000/scrape-openapi?openapi_url=https://petstore.swagger.io/v2/swagger.json"
@@ -303,16 +303,16 @@ curl "http://localhost:8000/scrape-openapi?openapi_url=https://petstore.swagger.
 **Response:**
 ```json
 {
-  "api_name": "Shopify",
+  "api_name": "Petstore",
   "version_ts": "2024-01-15T10:30:00Z",
-  "endpoint": "/admin/api/2023-10/products.json",
+  "endpoint": "/pet",
   "method": "GET",
-  "auth_type": "OAuth",
+  "auth_type": "api_key",
   "schema_json": {
     "input": {"type": "none"},
     "output": {"type": "json", "schema": {...}}
   },
-  "source_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+  "source_url": "https://petstore.swagger.io/v2/swagger.json"
 }
 ```
 
@@ -458,7 +458,7 @@ For quick testing without curl, you can use your browser:
 
 1. **Default example**: Visit `http://localhost:8000/parse-request`
 2. **Custom input**: Visit `http://localhost:8000/parse-request?user_input=Your automation request here`
-3. **OpenAPI scraping**: Visit `http://localhost:8000/scrape-openapi`
+3. **OpenAPI scraping**: Visit `http://localhost:8000/scrape-openapi` (uses Petstore API)
 4. **HTML scraping**: Visit `http://localhost:8000/scrape-html`
 5. **Interactive docs**: Visit `http://localhost:8000/docs` to test via Swagger UI
 
