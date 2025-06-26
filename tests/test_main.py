@@ -11,6 +11,7 @@ import logging
 import json
 import sys
 import os
+import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '../app'))
 from app.api_doc_scraper import (
     scrape_openapi, 
@@ -19,6 +20,7 @@ from app.api_doc_scraper import (
     validate_schema_extraction
 )
 from app.main import app
+from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
 
 client = TestClient(app)
 
@@ -131,3 +133,42 @@ def test_schema_validation():
     assert "auth_detection_rate" in validation
     assert "input_schema_rate" in validation
     assert "output_schema_rate" in validation
+
+def test_dynamodb_store_and_retrieve():
+    api_name = "TestAPI"
+    endpoint = "/test/endpoint"
+    method = "GET"
+    schema = {"input": {"foo": "bar"}, "output": {"baz": "qux"}}
+    metadata = {"auth_type": "None", "source_url": "http://example.com", "version_ts": "2025-01-01T00:00:00Z"}
+    ts = int(time.time())
+    # Store
+    item = store_schema_snapshot(api_name, endpoint, method, schema, metadata, timestamp=ts)
+    assert item["api_name"] == api_name
+    # Retrieve
+    retrieved = get_schema_by_version(api_name, ts)
+    assert retrieved is not None
+    assert retrieved["api_name"] == api_name
+    assert retrieved["endpoint"] == endpoint
+    assert retrieved["method"] == method
+    assert retrieved["schema"] == schema
+    assert retrieved["metadata"] == metadata
+
+def test_schema_snapshot_endpoint():
+    from fastapi.testclient import TestClient
+    client = TestClient(app)
+    api_name = "TestAPI"
+    endpoint = "/test/endpoint"
+    method = "POST"
+    schema = {"input": {"foo": "bar"}, "output": {"baz": "qux"}}
+    metadata = {"auth_type": "OAuth", "source_url": "http://example.com", "version_ts": "2025-01-01T00:00:00Z"}
+    ts = int(time.time())
+    store_schema_snapshot(api_name, endpoint, method, schema, metadata, timestamp=ts)
+    r = client.get(f"/schema-snapshot?api_name={api_name}&timestamp={ts}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["api_name"] == api_name
+    assert data["endpoint"] == endpoint
+    assert data["method"] == method
+    assert data["schema_json"] == schema
+    assert data["auth_type"] == metadata["auth_type"]
+    assert data["source_url"] == metadata["source_url"]

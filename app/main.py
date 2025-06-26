@@ -12,6 +12,7 @@ import logging
 import json
 import requests
 from pydantic import BaseModel
+import datetime
 
 # import models for request payload
 from app.models import NLRequest
@@ -30,6 +31,9 @@ from app.utils.validator import validate_flow
 
 # import API doc scraper
 from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction, format_shopify_openapi
+
+# import DynamoDB utility
+from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
 
 app = FastAPI(
     title="NL2Flow API",
@@ -235,19 +239,48 @@ async def scrape_openapi_endpoint(payload: OpenAPIRequest, request: Request):
             else:
                 raise
         validation = validate_schema_extraction(endpoints)
-        # Shopify-specific formatting
-        if "shopify.dev" in openapi_url:
-            result = format_shopify_openapi(openapi_url, endpoints)
-            result["trace_id"] = trace_id
+        # Store each endpoint as a snapshot in DynamoDB
+        api_name = "Shopify" if "shopify.dev" in openapi_url else "UnknownAPI"
+        now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+        now_iso = now.isoformat().replace('+00:00', 'Z')
+        now_ts = int(now.timestamp())
+        stored_snapshots = []
+        for ep in endpoints:
+            schema_json = {
+                "input": ep.get("input_schema", {}),
+                "output": ep.get("output_schema", {})
+            }
+            snapshot = store_schema_snapshot(
+                api_name=api_name,
+                endpoint=ep.get("path"),
+                method=ep.get("method"),
+                schema=schema_json,
+                metadata={
+                    "auth_type": ep.get("auth_type"),
+                    "source_url": openapi_url,
+                    "version_ts": now_iso
+                },
+                timestamp=now_ts
+            )
+            stored_snapshots.append(snapshot)
+        # Format output for the first endpoint as an example (can be extended for all)
+        if endpoints:
+            ep = endpoints[0]
+            schema_json = {
+                "input": ep.get("input_schema", {}),
+                "output": ep.get("output_schema", {})
+            }
+            result = {
+                "api_name": api_name,
+                "version_ts": now_iso,
+                "endpoint": ep.get("path"),
+                "method": ep.get("method"),
+                "auth_type": ep.get("auth_type"),
+                "schema_json": schema_json,
+                "source_url": openapi_url
+            }
             return result
-        # Default output for other APIs
-        return {
-            "trace_id": trace_id,
-            "openapi_url": openapi_url,
-            "endpoints_count": len(endpoints),
-            "extraction_quality": validation,
-            "endpoints": endpoints
-        }
+        return {"message": "No endpoints found in OpenAPI spec."}
     except requests.exceptions.RequestException as e:
         logging.error(f"Network error scraping OpenAPI: {e}")
         raise HTTPException(status_code=400, detail=f"Network error: {str(e)}.\n\nDebugging tips: Make sure the URL is accessible and is a direct OpenAPI JSON file. For Shopify, try using https://shopify.dev/api/admin-rest/latest/openapi.json.")
@@ -376,3 +409,20 @@ async def scrape_html_get(doc_url: str = "https://developers.google.com/gmail/ap
 async def favicon():
     favicon_path = os.path.join(os.path.dirname(__file__), "static", "favicon.ico")
     return FileResponse(favicon_path)
+
+# New endpoint to retrieve a schema snapshot by API name and timestamp
+@app.get("/schema-snapshot")
+async def get_schema_snapshot(api_name: str, timestamp: int):
+    item = get_schema_by_version(api_name, timestamp)
+    if not item:
+        raise HTTPException(status_code=404, detail="Schema snapshot not found.")
+    # Format output to match the required format
+    return {
+        "api_name": item["api_name"],
+        "version_ts": datetime.datetime.fromtimestamp(item["timestamp"], datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        "endpoint": item["endpoint"],
+        "method": item["method"],
+        "auth_type": item.get("metadata", {}).get("auth_type"),
+        "schema_json": item["schema"],
+        "source_url": item.get("metadata", {}).get("source_url")
+    }
