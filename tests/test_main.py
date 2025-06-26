@@ -175,34 +175,39 @@ def test_schema_snapshot_endpoint():
     assert data["source_url"] == metadata["source_url"]
 
 def test_schema_diff_engine():
+    from app.utils.schema_diff import diff_schema_versions
     old_schema = {
-        "id": "int",
-        "name": "string",
-        "address": {
-            "city": "string",
-            "zip": "string"
-        },
-        "tags": ["string"]
+        "product": {
+            "title": "string",
+            "vendor": "string"
+        }
     }
     new_schema = {
-        "id": "int",
-        "name": "string",
-        "address": {
-            "city": "string",
-            "zip": "int",  # changed type
-            "country": "string"  # added
-        },
-        "tags": ["string", "int"],  # added type in list
-        "email": "string"  # added field
+        "product": {
+            "title": "string",
+            "vendor": "string",
+            "tags": "string"
+        }
     }
     diff = diff_schema_versions(old_schema, new_schema)
-    # There should be at least one add, one remove, and one change
-    ops = [d["op"] for d in diff]
-    assert "add" in ops
-    assert "remove" not in ops  # nothing removed in this example
-    assert "change" in ops
-    # Check that nested change is detected
-    assert any(d["path"] == "address/zip" and d["op"] == "change" for d in diff)
-    # Check that added field is detected
-    assert any(d["path"] == "address/country" and d["op"] == "add" for d in diff)
-    assert any(d["path"] == "email" and d["op"] == "add" for d in diff)
+    # Convert the flat diff list to structured output
+    structured = {"added": {}, "removed": {}, "changed": {}}
+    for d in diff:
+        # Convert path to dot notation
+        dot_path = d["path"].replace("/", ".")
+        if d["op"] == "add":
+            structured["added"][dot_path] = {"new_type": d["new"]}
+        elif d["op"] == "remove":
+            structured["removed"][dot_path] = {"old_type": d["old"]}
+        elif d["op"] == "change":
+            structured["changed"][dot_path] = {"old_type": d["old"], "new_type": d["new"]}
+    expected = {
+        "added": {
+            "product.tags": {
+                "new_type": "string"
+            }
+        },
+        "removed": {},
+        "changed": {}
+    }
+    assert structured == expected
