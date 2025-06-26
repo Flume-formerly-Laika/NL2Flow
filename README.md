@@ -1,12 +1,15 @@
 # NL2Flow: Natural Language to Automation Flow Generator
 
-This project converts natural language automation requests into structured flow definitions using GPT-4 Turbo, FastAPI, and simplified field mapping.
+This project converts natural language automation requests into structured flow definitions using Google Gemini, FastAPI, and simplified field mapping. It also includes API documentation scraping, schema versioning, and schema diff capabilities.
 
 ## Features
 - Natural language input via REST API
-- GPT-4 Turbo intent extraction
+- Google Gemini intent extraction
 - Field mapping via dictionary rules
 - Validated JSON flow output
+- **API Documentation Scraping** - Extract endpoints from OpenAPI specs and HTML docs
+- **Schema Versioning** - Store and retrieve API schemas with DynamoDB
+- **Schema Diff Engine** - Compare schema versions to monitor changes
 - Cross-platform support (Windows PowerShell, Command Prompt, Unix/Linux)
 
 ## Quick Setup
@@ -16,7 +19,7 @@ This project converts natural language automation requests into structured flow 
 # Run the setup script
 .\setup.ps1
 
-# Edit the .env file to add your OpenAI API key
+# Edit the .env file to add your Google API key
 notepad .env
 
 # Start the application
@@ -52,10 +55,14 @@ chmod +x run.sh
 
 ## Configuration
 
-1. **Get an OpenAI API key** from https://platform.openai.com/api-keys
-2. **Edit the `.env` file** and replace `your_openai_api_key_here` with your actual API key:
+1. **Get a Google API key** from https://makersuite.google.com/app/apikey
+2. **Edit the `.env` file** and replace `your_google_api_key_here` with your actual API key:
    ```
-   OPENAI_API_KEY=sk-your-actual-api-key-here
+   GOOGLE_API_KEY=sk-your-actual-api-key-here
+   ```
+3. **Optional: Configure DynamoDB** (for schema versioning):
+   ```
+   DYNAMODB_SCHEMA_TABLE=The name you want to give the table
    ```
 
 ## API Documentation
@@ -85,7 +92,34 @@ The server runs on `http://localhost:8000`
 - **Purpose**: Browser-friendly version for testing
 - **Query Parameter**: `user_input` (optional, defaults to example)
 
-#### 4. Interactive Documentation
+#### 4. Scrape OpenAPI Documentation (POST)
+- **URL**: `POST /scrape-openapi`
+- **Purpose**: Extract endpoints from OpenAPI/Swagger JSON specs
+- **Content-Type**: `application/json`
+- **Body**: `{"openapi_url": "https://api.example.com/openapi.json"}`
+
+#### 5. Scrape OpenAPI Documentation (GET)
+- **URL**: `GET /scrape-openapi`
+- **Purpose**: Browser-friendly OpenAPI scraper
+- **Query Parameter**: `openapi_url` (optional, defaults to Shopify API)
+
+#### 6. Scrape HTML Documentation (POST)
+- **URL**: `POST /scrape-html`
+- **Purpose**: Extract endpoints from HTML documentation pages
+- **Content-Type**: `application/json`
+- **Body**: `{"doc_url": "https://docs.example.com/api"}`
+
+#### 7. Scrape HTML Documentation (GET)
+- **URL**: `GET /scrape-html`
+- **Purpose**: Browser-friendly HTML scraper
+- **Query Parameter**: `doc_url` (optional, defaults to Gmail API docs)
+
+#### 8. Get Schema Snapshot
+- **URL**: `GET /schema-snapshot`
+- **Purpose**: Retrieve a specific schema version by API name and timestamp
+- **Query Parameters**: `api_name`, `timestamp`
+
+#### 9. Interactive Documentation
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`
 
@@ -250,6 +284,121 @@ curl -X POST "http://localhost:8000/parse-request" \
 }
 ```
 
+## API Documentation Scraping
+
+### Scrape OpenAPI Specs
+
+Extract endpoints, methods, authentication, and schemas from OpenAPI/Swagger JSON files:
+
+```bash
+# POST request
+curl -X POST "http://localhost:8000/scrape-openapi" \
+     -H "Content-Type: application/json" \
+     -d '{"openapi_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"}'
+
+# GET request (browser-friendly)
+curl "http://localhost:8000/scrape-openapi?openapi_url=https://petstore.swagger.io/v2/swagger.json"
+```
+
+**Response:**
+```json
+{
+  "api_name": "Shopify",
+  "version_ts": "2024-01-15T10:30:00Z",
+  "endpoint": "/admin/api/2023-10/products.json",
+  "method": "GET",
+  "auth_type": "OAuth",
+  "schema_json": {
+    "input": {"type": "none"},
+    "output": {"type": "json", "schema": {...}}
+  },
+  "source_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+}
+```
+
+### Scrape HTML Documentation
+
+Extract endpoints from HTML documentation pages:
+
+```bash
+# POST request
+curl -X POST "http://localhost:8000/scrape-html" \
+     -H "Content-Type: application/json" \
+     -d '{"doc_url": "https://developers.google.com/gmail/api/reference/rest"}'
+
+# GET request (browser-friendly)
+curl "http://localhost:8000/scrape-html?doc_url=https://developers.google.com/gmail/api/reference/rest"
+```
+
+## Schema Versioning
+
+### Store Schema Snapshots
+
+When scraping API documentation, schemas are automatically stored in DynamoDB with timestamps for versioning.
+
+### Retrieve Schema Versions
+
+Get a specific schema version by API name and timestamp:
+
+```bash
+curl "http://localhost:8000/schema-snapshot?api_name=Shopify&timestamp=1705312200"
+```
+
+**Response:**
+```json
+{
+  "api_name": "Shopify",
+  "version_ts": "2024-01-15T10:30:00Z",
+  "endpoint": "/admin/api/2023-10/products.json",
+  "method": "GET",
+  "auth_type": "OAuth",
+  "schema_json": {
+    "input": {"type": "none"},
+    "output": {"type": "json", "schema": {...}}
+  },
+  "source_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+}
+```
+
+## Schema Diff Engine
+
+Compare two schema versions to monitor changes:
+
+```python
+from app.utils.schema_diff import diff_schema_versions
+
+old_schema = {
+    "product": {
+        "title": "string",
+        "vendor": "string"
+    }
+}
+
+new_schema = {
+    "product": {
+        "title": "string",
+        "vendor": "string",
+        "tags": "string"
+    }
+}
+
+diff = diff_schema_versions(old_schema, new_schema)
+# Returns structured diff with additions, deletions, and changes
+```
+
+**Example Output:**
+```json
+{
+  "added": {
+    "product.tags": {
+      "new_type": "string"
+    }
+  },
+  "removed": {},
+  "changed": {}
+}
+```
+
 ### Field Mapping
 
 The system automatically maps common field names to standardized output fields:
@@ -309,7 +458,9 @@ For quick testing without curl, you can use your browser:
 
 1. **Default example**: Visit `http://localhost:8000/parse-request`
 2. **Custom input**: Visit `http://localhost:8000/parse-request?user_input=Your automation request here`
-3. **Interactive docs**: Visit `http://localhost:8000/docs` to test via Swagger UI
+3. **OpenAPI scraping**: Visit `http://localhost:8000/scrape-openapi`
+4. **HTML scraping**: Visit `http://localhost:8000/scrape-html`
+5. **Interactive docs**: Visit `http://localhost:8000/docs` to test via Swagger UI
 
 ### Tips for Better Results
 
@@ -331,8 +482,11 @@ Run tests with:
 # Install test dependencies (if not already installed)
 pip install pytest httpx pytest-asyncio
 
-# Run tests
+# Run all tests
 pytest tests/
+
+# Run specific test
+pytest tests/test_main.py -k test_schema_diff_engine
 ```
 
 ## Project Structure
@@ -347,16 +501,19 @@ nl2flow/
 ├── requirements.txt    # Python dependencies
 ├── app/
 │   ├── main.py         # FastAPI application
-│   ├── gpt_handler.py  # OpenAI GPT integration
+│   ├── gpt_handler.py  # Google Gemini integration
 │   ├── models.py       # Pydantic models
 │   ├── transformer.py  # Flow JSON builder
+│   ├── api_doc_scraper.py  # API documentation scraper
 │   ├── rules/
 │   │   └── field_mapper.py  # Field mapping logic
 │   ├── schemas/
 │   │   └── email_flow_schema.json  # JSON schema
 │   └── utils/
 │       ├── logger.py   # Request logging
-│       └── validator.py # Flow validation
+│       ├── validator.py # Flow validation
+│       ├── dynamodb_snapshots.py  # Schema versioning
+│       └── schema_diff.py  # Schema diff engine
 └── tests/
     ├── test_main.py    # API tests
     └── test_transformer.py  # Transform tests
@@ -375,10 +532,14 @@ Make sure Python 3.8+ is installed and in your PATH:
 - Download from https://python.org/downloads/
 - During installation, check "Add Python to PATH"
 
-### OpenAI API Errors
+### Google API Errors
 - Ensure your API key is correct in the `.env` file
-- Check your OpenAI account has credits/billing set up
+- Check your Google account has credits/billing set up
 - The application includes fallback responses if the API is unavailable
+
+### DynamoDB Configuration
+- Ensure AWS credentials are configured (if using DynamoDB)
+- The application will work without DynamoDB, but schema versioning won't be available
 
 ### Port Already in Use
 If port 8000 is busy, modify the run scripts to use a different port:
