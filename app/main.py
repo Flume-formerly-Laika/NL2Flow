@@ -194,6 +194,7 @@ async def scrape_openapi_endpoint(request: Request):
     - For Shopify, the correct format is https://shopify.dev/api/admin-rest/<version>/openapi.json
     - If you get a 404 error, check if the URL contains /docs/ instead of /api/ and auto-correct it.
     - If you get a JSON decode error, the URL is likely not a JSON file.
+    - If you get repeated errors, try using the 'latest' version: https://shopify.dev/api/admin-rest/latest/openapi.json
     - Use /scrape-html for HTML documentation pages.
     """
     try:
@@ -212,7 +213,24 @@ async def scrape_openapi_endpoint(request: Request):
             openapi_url = openapi_url.replace("/docs/", "/api/")
         logging.debug(f"Scraping OpenAPI from: {openapi_url}")
         trace_id = log_request(request, f"Scraping OpenAPI: {openapi_url}")
-        endpoints = scrape_openapi(openapi_url)
+        try:
+            endpoints = scrape_openapi(openapi_url)
+        except requests.exceptions.HTTPError as e:
+            # If 404 and Shopify, try 'latest' OpenAPI JSON
+            if ("shopify.dev" in openapi_url and e.response is not None and e.response.status_code == 404):
+                logging.warning(f"404 for {openapi_url}, trying latest OpenAPI JSON")
+                openapi_url = "https://shopify.dev/api/admin-rest/latest/openapi.json"
+                endpoints = scrape_openapi(openapi_url)
+            else:
+                raise
+        except json.JSONDecodeError as e:
+            # If JSON decode error, likely HTML page, try 'latest' OpenAPI JSON for Shopify
+            if "shopify.dev" in openapi_url:
+                logging.warning(f"JSON decode error for {openapi_url}, trying latest OpenAPI JSON")
+                openapi_url = "https://shopify.dev/api/admin-rest/latest/openapi.json"
+                endpoints = scrape_openapi(openapi_url)
+            else:
+                raise
         validation = validate_schema_extraction(endpoints)
         # Shopify-specific formatting
         if "shopify.dev" in openapi_url:
@@ -229,13 +247,13 @@ async def scrape_openapi_endpoint(request: Request):
         }
     except requests.exceptions.RequestException as e:
         logging.error(f"Network error scraping OpenAPI: {e}")
-        raise HTTPException(status_code=400, detail=f"Network error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Network error: {str(e)}.\n\nDebugging tips: Make sure the URL is accessible and is a direct OpenAPI JSON file. For Shopify, try using https://shopify.dev/api/admin-rest/latest/openapi.json.")
     except json.JSONDecodeError as e:
         logging.error(f"Invalid JSON in OpenAPI spec: {e}")
-        raise HTTPException(status_code=400, detail="Invalid OpenAPI JSON specification")
+        raise HTTPException(status_code=400, detail="Invalid OpenAPI JSON specification.\n\nDebugging tips: The URL you provided is likely an HTML page, not a JSON file. For Shopify, use https://shopify.dev/api/admin-rest/latest/openapi.json.")
     except Exception as e:
         logging.error(f"OpenAPI scraping failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}.\n\nDebugging tips: If this is a Shopify URL, try using https://shopify.dev/api/admin-rest/latest/openapi.json. If the error persists, check your network connection and the URL's accessibility.")
 
 @app.get("/scrape-openapi")
 async def scrape_openapi_get(openapi_url: str = "https://shopify.dev/api/admin-rest/2023-10/openapi.json"):
