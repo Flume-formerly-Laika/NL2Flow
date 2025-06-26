@@ -419,7 +419,7 @@ async def get_schema_snapshot(api_name: str, timestamp: int):
     # Format output to match the required format
     return {
         "api_name": item["api_name"],
-        "version_ts": datetime.datetime.fromtimestamp(item["timestamp"], datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        "version_ts": datetime.datetime.fromtimestamp(int(item["timestamp"]), datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
         "endpoint": item["endpoint"],
         "method": item["method"],
         "auth_type": item.get("metadata", {}).get("auth_type"),
