@@ -28,7 +28,7 @@ from app.utils.logger import log_request
 from app.utils.validator import validate_flow
 
 # import API doc scraper
-from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction
+from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction, format_shopify_openapi
 
 app = FastAPI(
     title="NL2Flow API",
@@ -188,25 +188,22 @@ async def parse_request_get(user_input: str = "When a new user signs up, send a 
 async def scrape_openapi_endpoint(request: Request):
     """
     Scrape OpenAPI/Swagger documentation from a URL
-    
-    DEBUG: This endpoint extracts endpoints, methods, auth types, and schemas from OpenAPI specs.
-    Common issues: CORS, invalid JSON, missing security schemes, schema references.
     """
     try:
         body = await request.json()
         openapi_url = body.get("openapi_url")
         if not openapi_url:
             raise HTTPException(status_code=400, detail="openapi_url is required")
-        
-        # DEBUG: Log the request
         logging.debug(f"Scraping OpenAPI from: {openapi_url}")
-        
         trace_id = log_request(request, f"Scraping OpenAPI: {openapi_url}")
         endpoints = scrape_openapi(openapi_url)
-        
-        # Validate extraction quality
         validation = validate_schema_extraction(endpoints)
-        
+        # Shopify-specific formatting
+        if "shopify.dev" in openapi_url:
+            result = format_shopify_openapi(openapi_url, endpoints)
+            result["trace_id"] = trace_id
+            return result
+        # Default output for other APIs
         return {
             "trace_id": trace_id,
             "openapi_url": openapi_url,

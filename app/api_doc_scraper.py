@@ -601,4 +601,52 @@ def validate_schema_extraction(endpoints: List[Dict[str, Any]]) -> Dict[str, Any
 - Use validate_schema_extraction() to check extraction quality
 - Enable DEBUG logging to see step-by-step extraction process
 - Test with well-known OpenAPI specs first (Shopify, Stripe, etc.)
-""" 
+"""
+
+def format_shopify_openapi(openapi_url: str, endpoints: list) -> dict:
+    """
+    Formats the scraped OpenAPI data for Shopify to match the required output structure.
+    Args:
+        openapi_url (str): The source URL of the OpenAPI spec.
+        endpoints (list): List of endpoint dicts from scrape_openapi.
+    Returns:
+        dict: Formatted output as required by the user.
+    """
+    def flatten_schema(schema):
+        # Recursively flatten OpenAPI schema to a simple type map
+        if not isinstance(schema, dict):
+            return schema
+        if schema.get('type') == 'object' and 'properties' in schema:
+            return {k: flatten_schema(v) for k, v in schema['properties'].items()}
+        if schema.get('type') == 'array' and 'items' in schema:
+            return [flatten_schema(schema['items'])]
+        if 'type' in schema:
+            return schema['type']
+        return schema
+
+    formatted_endpoints = []
+    for ep in endpoints:
+        # Try to extract a summary/description if available
+        desc = ep.get('description')
+        if not desc:
+            # Try to get from input_schema/output_schema
+            desc = ep.get('input_schema', {}).get('description') or ep.get('output_schema', {}).get('description')
+        # Flatten schemas
+        input_schema = ep.get('input_schema', {})
+        output_schema = ep.get('output_schema', {})
+        # Shopify spec puts schema under 'schema' key
+        input_flat = flatten_schema(input_schema.get('schema', {})) if 'schema' in input_schema else {}
+        output_flat = flatten_schema(output_schema.get('schema', {})) if 'schema' in output_schema else {}
+        formatted_endpoints.append({
+            'path': ep.get('path'),
+            'method': ep.get('method'),
+            'auth_type': 'OAuth',  # Shopify always uses OAuth
+            'description': desc or '',
+            'input_schema': input_flat,
+            'output_schema': output_flat
+        })
+    return {
+        'api_name': 'Shopify',
+        'source_url': openapi_url,
+        'endpoints': formatted_endpoints
+    } 
