@@ -82,6 +82,14 @@ def test_parse_valid_input():
     assert "flow" in r.json()
 
 def test_openapi_scraping():
+    """
+    
+     @brief Tests the scraping of an OpenAPI spec
+     @return None
+     @throws AssertionError if the scraping doesn't work as expected
+     @details Verifies that the scraping of an OpenAPI spec returns a list of endpoints
+     
+    """
     # Use a stable, public OpenAPI spec (Swagger Petstore)
     petstore_url = "https://petstore.swagger.io/v2/swagger.json"
     endpoints = scrape_openapi(petstore_url)
@@ -91,6 +99,14 @@ def test_openapi_scraping():
     assert validation["status"] == "success"
 
 def test_html_scraping():
+    """
+    
+     @brief Tests the scraping of an HTML document
+     @return None
+     @throws AssertionError if the scraping doesn't work as expected
+     @details Verifies that the scraping of an HTML document returns a list of endpoints
+     
+    """
     test_url = "https://httpbin.org/json"
     endpoints = scrape_html_doc(test_url)
     assert isinstance(endpoints, list)
@@ -98,6 +114,14 @@ def test_html_scraping():
     assert "status" in validation
 
 def test_debug_function():
+    """
+    /**
+     * @brief Tests the debug function
+     * @return None
+     * @throws AssertionError if the debug function raises an exception
+     * @details Verifies that the debug function runs without error
+     */
+    """
     test_url = "https://petstore.swagger.io/v2/swagger.json"
     # This just checks that the debug function runs without error
     try:
@@ -106,6 +130,14 @@ def test_debug_function():
         assert False, f"debug_schema_extraction raised an exception: {e}"
 
 def test_schema_validation():
+    """
+    /**
+     * @brief Tests the schema validation
+     * @return None
+     * @throws AssertionError if the schema validation doesn't work as expected
+     * @details Verifies that the schema validation returns a list of endpoints
+     */
+    """
     sample_endpoints = [
         {
             'method': 'GET',
@@ -136,6 +168,14 @@ def test_schema_validation():
     assert "output_schema_rate" in validation
 
 def test_dynamodb_store_and_retrieve():
+    """
+    /**
+     * @brief Tests the DynamoDB store and retrieve
+     * @return None
+     * @throws AssertionError if the DynamoDB store and retrieve doesn't work as expected
+     * @details Verifies that the DynamoDB store and retrieve returns a list of endpoints
+     */
+    """
     api_name = "TestAPI"
     endpoint = "/test/endpoint"
     method = "GET"
@@ -155,6 +195,14 @@ def test_dynamodb_store_and_retrieve():
     assert retrieved["metadata"] == metadata
 
 def test_schema_snapshot_endpoint():
+    """
+    /**
+     * @brief Tests the schema snapshot endpoint
+     * @return None
+     * @throws AssertionError if the schema snapshot endpoint doesn't work as expected
+     * @details Verifies that the schema snapshot endpoint returns a list of endpoints
+     */
+    """
     from fastapi.testclient import TestClient
     client = TestClient(app)
     api_name = "TestAPI"
@@ -175,6 +223,14 @@ def test_schema_snapshot_endpoint():
     assert data["source_url"] == metadata["source_url"]
 
 def test_schema_diff_engine():
+    """
+    /**
+     * @brief Tests the schema diff engine
+     * @return None
+     * @throws AssertionError if the schema diff engine doesn't work as expected
+     * @details Verifies that the schema diff engine returns a list of endpoints
+     */
+    """
     from app.utils.schema_diff import diff_schema_versions
     old_schema = {
         "product": {
@@ -211,3 +267,178 @@ def test_schema_diff_engine():
         "changed": {}
     }
     assert structured == expected
+
+def test_diff_engine_basic_add_remove_change():
+    """
+    /**
+     * @brief Tests the diff engine basic add, remove, change
+     * @return None
+     * @throws AssertionError if the diff engine basic add, remove, change doesn't work as expected
+     * @details Verifies that the diff engine basic add, remove, change returns a list of endpoints
+     */
+    """
+    old_schema = {"a": 1, "b": 2}
+    new_schema = {"a": 1, "b": 3, "c": 4}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "add" and d["path"] == "c" for d in diff)
+    assert any(d["op"] == "change" and d["path"] == "b" for d in diff)
+
+def test_diff_engine_no_difference():
+    """
+    /**
+     * @brief Tests the diff engine no difference
+     * @return None
+     * @throws AssertionError if the diff engine no difference doesn't work as expected
+     * @details Verifies that the diff engine no difference returns a list of endpoints
+     */
+    """
+    schema = {"x": {"y": [1, 2, 3]}, "z": "foo"}
+    r = client.post("/diff-schemas", json={"old_schema": schema, "new_schema": schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert diff == []
+
+def test_diff_engine_nested():
+    old_schema = {"a": {"b": {"c": 1}}}
+    new_schema = {"a": {"b": {"c": 2, "d": 3}}}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "change" and d["path"] == "a/b/c" for d in diff)
+    assert any(d["op"] == "add" and d["path"] == "a/b/d" for d in diff)
+
+def test_diff_engine_list_handling():
+    """
+    /**
+     * @brief Tests the diff engine list handling
+     * @return None
+     * @throws AssertionError if the diff engine list handling doesn't work as expected
+     * @details Verifies that the diff engine list handling returns a list of endpoints
+     */
+    """
+    old_schema = {"arr": [1, 2, 3]}
+    new_schema = {"arr": [1, 4]}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "change" and d["path"] == "arr[1]" for d in diff)
+    assert any(d["op"] == "remove" and d["path"] == "arr[2]" for d in diff)
+
+def test_diff_engine_type_change():
+    """
+    /**
+     * @brief Tests the diff engine type change
+     * @return None
+     * @throws AssertionError if the diff engine type change doesn't work as expected
+     * @details Verifies that the diff engine type change returns a list of endpoints
+     */
+    """
+    old_schema = {"foo": 123}
+    new_schema = {"foo": "bar"}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "change" and d["path"] == "foo" for d in diff)
+
+def test_diff_engine_empty_schemas():
+    """
+    /**
+     * @brief Tests the diff engine empty schemas
+     * @return None
+     * @throws AssertionError if the diff engine empty schemas doesn't work as expected
+     * @details Verifies that the diff engine empty schemas returns a list of endpoints
+     */
+    """
+    r = client.post("/diff-schemas", json={"old_schema": {}, "new_schema": {}})
+    assert r.status_code == 200
+    assert r.json()["diff"] == []
+
+def test_diff_engine_old_empty():
+    """
+    /**
+     * @brief Tests the diff engine old empty
+     * @return None
+     * @throws AssertionError if the diff engine old empty doesn't work as expected
+     * @details Verifies that the diff engine old empty returns a list of endpoints
+     */
+    """
+    new_schema = {"a": 1}
+    r = client.post("/diff-schemas", json={"old_schema": {}, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "add" and d["path"] == "a" for d in diff)
+
+def test_diff_engine_new_empty():
+    """
+    /**
+     * @brief Tests the diff engine new empty
+     * @return None
+     * @throws AssertionError if the diff engine new empty doesn't work as expected
+     * @details Verifies that the diff engine new empty returns a list of endpoints
+     */
+    """
+    old_schema = {"a": 1}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": {}})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "remove" and d["path"] == "a" for d in diff)
+
+def test_diff_engine_none_and_missing():
+    # Edge: None vs missing field
+    old_schema = {"a": None}
+    new_schema = {}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    # Should register as remove
+    assert any(d["op"] == "remove" and d["path"] == "a" for d in diff)
+
+    # Edge: missing vs None
+    old_schema = {}
+    new_schema = {"a": None}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    # Should register as add
+    assert any(d["op"] == "add" and d["path"] == "a" for d in diff)
+
+def test_diff_engine_type_conflict():
+    # Edge: Same key, different types (dict vs list)
+    old_schema = {"a": {"b": 1}}
+    new_schema = {"a": [1, 2, 3]}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    # Should register as change at 'a'
+    assert any(d["op"] == "change" and d["path"] == "a" for d in diff)
+
+def test_diff_engine_deeply_nested():
+    # Edge: Deeply nested change
+    old_schema = {"a": {"b": {"c": {"d": 1}}}}
+    new_schema = {"a": {"b": {"c": {"d": 2}}}}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "change" and d["path"] == "a/b/c/d" for d in diff)
+
+def test_diff_engine_empty_list_and_dict():
+    # Edge: Empty list vs empty dict
+    old_schema = {"a": []}
+    new_schema = {"a": {}}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "change" and d["path"] == "a" for d in diff)
+
+def test_diff_engine_multiple_simultaneous_changes():
+    # Edge: Add, remove, and change in one call
+    old_schema = {"a": 1, "b": 2, "c": 3}
+    new_schema = {"a": 1, "b": 20, "d": 4}
+    r = client.post("/diff-schemas", json={"old_schema": old_schema, "new_schema": new_schema})
+    assert r.status_code == 200
+    diff = r.json()["diff"]
+    assert any(d["op"] == "remove" and d["path"] == "c" for d in diff)
+    assert any(d["op"] == "add" and d["path"] == "d" for d in diff)
+    assert any(d["op"] == "change" and d["path"] == "b" for d in diff)
