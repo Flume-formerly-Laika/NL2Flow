@@ -500,4 +500,6 @@ async def diff_schemas_endpoint(payload: DiffRequest):
         )
 
     explanation = "\n".join(explanation_lines)
-    return {"diff": diff, "explanation": explanation}
+    # Replace newlines with <br> for better display in Swagger UI and browsers
+    explanation_html = explanation.replace("\n", "<br>")
+    return {"diff": diff, "explanation": explanation_html}
