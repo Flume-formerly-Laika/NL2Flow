@@ -475,11 +475,29 @@ async def diff_schemas_endpoint(payload: DiffRequest):
     - `new`: The value/type in the new schema (or None if removed).
     """
     diff = diff_schema_versions(payload.old_schema, payload.new_schema)
-    explanation = (
-        "Each item in the result is a change operation with:\n"
-        "- op: The operation type. One of: add (added in new schema), remove (removed from old schema), change (value/type changed).\n"
-        "- path: The JSON path to the field that changed (e.g., 'product/tags').\n"
-        "- old: The value/type in the old schema (or None if added).\n"
-        "- new: The value/type in the new schema (or None if removed)."
-    )
+
+    # Analyze the diff result
+    added = [d for d in diff if d['op'] == 'add']
+    removed = [d for d in diff if d['op'] == 'remove']
+    changed = [d for d in diff if d['op'] == 'change']
+
+    explanation_lines = []
+    if not diff:
+        explanation_lines.append("No differences found between the two schemas.")
+    else:
+        if added:
+            explanation_lines.append(f"{len(added)} field(s) added: " + ", ".join(d['path'] for d in added))
+        if removed:
+            explanation_lines.append(f"{len(removed)} field(s) removed: " + ", ".join(d['path'] for d in removed))
+        if changed:
+            explanation_lines.append(f"{len(changed)} field(s) changed: " + ", ".join(d['path'] for d in changed))
+        explanation_lines.append(
+            "Each item in the result is a change operation with:\n"
+            "- op: The operation type (add, remove, change).\n"
+            "- path: The JSON path to the field that changed.\n"
+            "- old: The value/type in the old schema (or None if added).\n"
+            "- new: The value/type in the new schema (or None if removed)."
+        )
+
+    explanation = "\n".join(explanation_lines)
     return {"diff": diff, "explanation": explanation}
