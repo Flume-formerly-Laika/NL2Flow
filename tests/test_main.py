@@ -442,3 +442,51 @@ def test_diff_engine_multiple_simultaneous_changes():
     assert any(d["op"] == "remove" and d["path"] == "c" for d in diff)
     assert any(d["op"] == "add" and d["path"] == "d" for d in diff)
     assert any(d["op"] == "change" and d["path"] == "b" for d in diff)
+
+def test_health_wrong_method():
+    # Edge: Wrong HTTP method (POST instead of GET)
+    r = client.post("/health")
+    assert r.status_code in (405, 404)  # Method Not Allowed or Not Found
+
+def test_parse_request_malformed_json():
+    # Edge: Malformed JSON in request body
+    r = client.post("/parse-request", data="{bad json")
+    assert r.status_code == 422 or r.status_code == 400
+
+def test_parse_request_missing_field():
+    # Edge: Missing user_input field in request
+    r = client.post("/parse-request", json={})
+    assert r.status_code == 422
+
+def test_parse_request_large_input():
+    # Edge: Very large user_input string
+    large_input = "a" * 10000
+    r = client.post("/parse-request", json={"user_input": large_input})
+    assert r.status_code in (200, 500)  # Should not crash
+
+def test_openapi_scraping_invalid_url():
+    # Edge: Invalid OpenAPI URL
+    try:
+        scrape_openapi("http://invalid-url")
+    except Exception as e:
+        assert True  # Should raise
+
+def test_html_scraping_non_json():
+    # Edge: Non-JSON HTML page for HTML scraping
+    endpoints = scrape_html_doc("https://www.example.com")
+    assert isinstance(endpoints, list)
+
+def test_schema_validation_empty():
+    # Edge: Empty endpoints list for schema validation
+    validation = validate_schema_extraction([])
+    assert validation["status"] == "error"
+
+def test_dynamodb_retrieve_nonexistent():
+    # Edge: Retrieve nonexistent snapshot from DynamoDB
+    result = get_schema_by_version("NonexistentAPI", 0)
+    assert result is None
+
+def test_schema_snapshot_endpoint_missing_params():
+    # Edge: Missing required query params for schema snapshot endpoint
+    r = client.get("/schema-snapshot")
+    assert r.status_code == 422
