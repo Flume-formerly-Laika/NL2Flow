@@ -463,6 +463,16 @@ async def diff_schemas_endpoint(payload: DiffRequest):
     - **old_schema**: The original schema (JSON object)
     - **new_schema**: The new schema (JSON object)
     Returns a list of changes (additions, removals, modifications).
+
+    **Diff result explanation:**
+    Each item in the result list is a change operation with:
+    - `op`: The operation type. One of:
+        - `add`: This field/path was added in the new schema.
+        - `remove`: This field/path was removed from the old schema.
+        - `change`: The value/type at this path changed between old and new.
+    - `path`: The JSON path to the field that changed (e.g., 'product/tags').
+    - `old`: The value/type in the old schema (or None if added).
+    - `new`: The value/type in the new schema (or None if removed).
     """
     diff = diff_schema_versions(payload.old_schema, payload.new_schema)
     return {"diff": diff}
