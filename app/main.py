@@ -137,6 +137,36 @@ curl -X POST "http://localhost:8000/parse-request" \
      -H "Content-Type: application/json" \
      -d '{"user_input": "When a new user signs up, send a welcome email"}'
                 </div>
+
+                <h2>Diff Engine</h2>
+                <p>Compare two schema versions and get a structured diff of changes:</p>
+                <div class="example">
+from app.utils.schema_diff import diff_schema_versions
+
+old_schema = {
+    "product": {
+        "title": "string",
+        "vendor": "string"
+    }
+}
+
+new_schema = {
+    "product": {
+        "title": "string",
+        "vendor": "string",
+        "tags": "string"
+    }
+}
+
+diff = diff_schema_versions(old_schema, new_schema)
+# Returns a list of changes (additions, removals, modifications)
+                </div>
+                <p><strong>Example Output:</strong></p>
+                <div class="example">
+[
+  {"op": "add", "path": "product/tags", "old": null, "new": "string"}
+]
+                </div>
             </div>
         </body>
     </html>
@@ -199,48 +229,37 @@ async def scrape_openapi_endpoint(payload: OpenAPIRequest, request: Request):
     
     Debugging tips:
     - Ensure the openapi_url is a direct link to a JSON spec (not an HTML doc page).
-    - For Shopify, the correct format is https://shopify.dev/api/admin-rest/<version>/openapi.json
-    - If you get a 404 error, check if the URL contains /docs/ instead of /api/ and auto-correct it.
+    - Example: https://petstore.swagger.io/v2/swagger.json
+    - If you get a 404 error, check if the URL is correct and accessible.
     - If you get a JSON decode error, the URL is likely not a JSON file.
-    - If you get repeated errors, try using the 'latest' version: https://shopify.dev/api/admin-rest/latest/openapi.json
     - Use /scrape-html for HTML documentation pages.
     """
     try:
         openapi_url = payload.openapi_url
         if not openapi_url:
             raise HTTPException(status_code=400, detail="openapi_url is required")
-        # Shopify auto-correction: convert /docs/ to /api/ if needed
-        if "shopify.dev" in openapi_url and "/docs/" in openapi_url:
-            openapi_url = openapi_url.replace("/docs/", "/api/")
-            # If the URL ends with /resources/product, replace with /openapi.json
-            if openapi_url.endswith("/resources/product"):
-                openapi_url = openapi_url.replace("/resources/product", "/openapi.json")
-        # If the user gives a versioned docs page, try to convert to openapi.json
-        if "shopify.dev" in openapi_url and openapi_url.endswith("/openapi.json") and "/docs/" in openapi_url:
-            openapi_url = openapi_url.replace("/docs/", "/api/")
         logging.debug(f"Scraping OpenAPI from: {openapi_url}")
         trace_id = log_request(request, f"Scraping OpenAPI: {openapi_url}")
+        api_name = None
         try:
             endpoints = scrape_openapi(openapi_url)
+            # Try to fetch the API name from the OpenAPI spec
+            # Fetch the spec directly to get info.title
+            spec_resp = requests.get(openapi_url)
+            spec_resp.raise_for_status()
+            spec = spec_resp.json()
+            api_name = spec.get("info", {}).get("title") or "UnknownAPI"
         except requests.exceptions.HTTPError as e:
-            # If 404 and Shopify, try 'latest' OpenAPI JSON
-            if ("shopify.dev" in openapi_url and e.response is not None and e.response.status_code == 404):
-                logging.warning(f"404 for {openapi_url}, trying latest OpenAPI JSON")
-                openapi_url = "https://shopify.dev/api/admin-rest/latest/openapi.json"
-                endpoints = scrape_openapi(openapi_url)
-            else:
-                raise
+            api_name = "UnknownAPI"
+            raise
         except json.JSONDecodeError as e:
-            # If JSON decode error, likely HTML page, try 'latest' OpenAPI JSON for Shopify
-            if "shopify.dev" in openapi_url:
-                logging.warning(f"JSON decode error for {openapi_url}, trying latest OpenAPI JSON")
-                openapi_url = "https://shopify.dev/api/admin-rest/latest/openapi.json"
-                endpoints = scrape_openapi(openapi_url)
-            else:
-                raise
+            api_name = "UnknownAPI"
+            raise
+        except Exception as e:
+            api_name = "UnknownAPI"
+            raise
         validation = validate_schema_extraction(endpoints)
         # Store each endpoint as a snapshot in DynamoDB
-        api_name = "Shopify" if "shopify.dev" in openapi_url else "UnknownAPI"
         now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
         now_iso = now.isoformat().replace('+00:00', 'Z')
         now_ts = int(now.timestamp())
@@ -271,13 +290,15 @@ async def scrape_openapi_endpoint(payload: OpenAPIRequest, request: Request):
                 "output": ep.get("output_schema", {})
             }
             result = {
+                "trace_id": trace_id,
                 "api_name": api_name,
                 "version_ts": now_iso,
                 "endpoint": ep.get("path"),
                 "method": ep.get("method"),
                 "auth_type": ep.get("auth_type"),
                 "schema_json": schema_json,
-                "source_url": openapi_url
+                "source_url": openapi_url,
+                "extraction_quality": validation
             }
             return result
         return {"message": "No endpoints found in OpenAPI spec."}
