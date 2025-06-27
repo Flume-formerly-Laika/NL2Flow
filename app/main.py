@@ -13,6 +13,7 @@ import json
 import requests
 from pydantic import BaseModel
 import datetime
+from typing import Dict, Any
 
 # import models for request payload
 from app.models import NLRequest
@@ -35,6 +36,9 @@ from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema
 # import DynamoDB utility
 from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
 
+# import schema diff engine
+from app.utils.schema_diff import diff_schema_versions
+
 app = FastAPI(
     title="NL2Flow API",
     description="Natural Language to Automation Flow Generator with API Documentation Scraper",
@@ -43,6 +47,10 @@ app = FastAPI(
 
 class OpenAPIRequest(BaseModel):
     openapi_url: str
+
+class DiffRequest(BaseModel):
+    old_schema: Dict[str, Any]
+    new_schema: Dict[str, Any]
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -447,3 +455,14 @@ async def get_schema_snapshot(api_name: str, timestamp: int):
         "schema_json": item["schema"],
         "source_url": item.get("metadata", {}).get("source_url")
     }
+
+@app.post("/diff-schemas", tags=["Diff Engine"])
+async def diff_schemas_endpoint(payload: DiffRequest):
+    """
+    Diff Engine: Compare two schema versions and return a structured diff.
+    - **old_schema**: The original schema (JSON object)
+    - **new_schema**: The new schema (JSON object)
+    Returns a list of changes (additions, removals, modifications).
+    """
+    diff = diff_schema_versions(payload.old_schema, payload.new_schema)
+    return {"diff": diff}
