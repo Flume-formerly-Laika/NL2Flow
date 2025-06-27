@@ -490,3 +490,11 @@ def test_schema_snapshot_endpoint_missing_params():
     # Edge: Missing required query params for schema snapshot endpoint
     r = client.get("/schema-snapshot")
     assert r.status_code == 422
+
+def test_diff_schema_versions_direct_usage():
+    # This test ensures the direct import is used and works
+    old = {"a": 1}
+    new = {"a": 2}
+    diff = diff_schema_versions(old, new)
+    assert isinstance(diff, list)
+    assert any(d["op"] == "change" and d["path"] == "a" for d in diff)
