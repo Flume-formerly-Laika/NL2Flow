@@ -541,7 +541,7 @@ def test_health_wrong_method():
 
 def test_parse_request_malformed_json():
     # Edge: Malformed JSON in request body
-    r = client.post("/parse-request", data="{bad json")
+    r = client.post("/parse-request", content="{bad json", headers={"Content-Type": "application/json"})
     assert r.status_code == 422 or r.status_code == 400
 
 def test_parse_request_missing_field():

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nl2flow"
+version = "1.0.0"
+description = "Natural Language to Automation Flow Generator"
+authors = [{name = "Huy Le", username = "huyisme-005"}]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.0.0",
+    "requests>=2.31.0",
+    "boto3>=1.34.0",
+    "google-generativeai>=0.3.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "pyke>=1.1.1",
+    "jsonschema>=4.19.0",
+    "business-rules>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "scrapy>=2.11.0",
+    "deep-diff>=6.7.0",
+    "diff-match-patch>=1.0.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short" 
