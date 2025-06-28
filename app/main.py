@@ -582,24 +582,28 @@ async def diff_schemas_endpoint(payload: DiffRequest):
 @app.get("/list-apis", response_model=ListAPIResponse, tags=["DynamoDB Management"])
 async def list_apis():
     """
-    List all available APIs stored in DynamoDB.
+    List all available APIs stored in DynamoDB, including their available timestamps.
     """
     try:
         api_names = list_api_names()
+        api_versions = {}
+        for api in api_names:
+            versions = list_api_versions(api)
+            api_versions[api] = [v["timestamp"] for v in versions]
         return ListAPIResponse(
             api_names=api_names,
-            total_count=len(api_names)
+            total_count=len(api_names),
+            api_versions=api_versions
         )
     except Exception as e:
         # If it's a connection error, return empty list with a warning
         if "Could not connect to the endpoint URL" in str(e) or "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
-            # Optionally, log the warning
             logging.warning(f"DynamoDB unreachable, returning empty list for /list-apis: {e}")
             return ListAPIResponse(
                 api_names=[],
-                total_count=0
+                total_count=0,
+                api_versions={}
             )
-        # Otherwise, return a 500 error
         logging.error(f"Failed to list APIs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list APIs: {str(e)}")
 

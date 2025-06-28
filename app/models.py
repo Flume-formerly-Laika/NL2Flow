@@ -78,9 +78,11 @@ class ListAPIResponse(BaseModel):
     Attributes:
         api_names (List[str]): List of available API names
         total_count (int): Total number of APIs
+        api_versions (Dict[str, List[str]]): Mapping of API name to list of available timestamps (versions)
     """
     api_names: List[str] = Field(..., description="List of available API names")
     total_count: int = Field(..., description="Total number of APIs")
+    api_versions: Dict[str, List[str]] = Field(default_factory=dict, description="Mapping of API name to list of available timestamps (versions)")
 
 class APIVersionInfo(BaseModel):
     """

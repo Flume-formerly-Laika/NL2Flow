@@ -592,20 +592,25 @@ def test_diff_schema_versions_direct_usage():
     assert any(d["op"] == "change" and d["path"] == "a" for d in diff)
 
 def test_list_apis_normal():
-    """Test /list-apis returns a list (could be empty) and status 200."""
+    """Test /list-apis returns a list (could be empty) and status 200, and includes api_versions."""
     response = client.get("/list-apis")
     assert response.status_code == 200
     data = response.json()
     assert "api_names" in data
     assert "total_count" in data
+    assert "api_versions" in data
     assert isinstance(data["api_names"], list)
     assert isinstance(data["total_count"], int)
+    assert isinstance(data["api_versions"], dict)
+    for api, versions in data["api_versions"].items():
+        assert isinstance(versions, list)
 
 def test_list_apis_dynamodb_unreachable():
-    """Test /list-apis returns empty list and 200 if DynamoDB is unreachable."""
+    """Test /list-apis returns empty list and 200 if DynamoDB is unreachable, and includes api_versions."""
     with patch("app.main.list_api_names", side_effect=Exception("Could not connect to the endpoint URL: 'https://dynamodb.us-east-1.amazonaws.com/'")):
         response = client.get("/list-apis")
         assert response.status_code == 200
         data = response.json()
         assert data["api_names"] == []
         assert data["total_count"] == 0
+        assert data["api_versions"] == {}
