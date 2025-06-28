@@ -583,10 +583,6 @@ async def diff_schemas_endpoint(payload: DiffRequest):
 async def list_apis():
     """
     List all available APIs stored in DynamoDB.
-    
-    Returns a list of all unique API names that have been scraped and stored.
-    This is useful for identifying which APIs you have data for before performing
-    delete operations.
     """
     try:
         api_names = list_api_names()
@@ -595,6 +591,15 @@ async def list_apis():
             total_count=len(api_names)
         )
     except Exception as e:
+        # If it's a connection error, return empty list with a warning
+        if "Could not connect to the endpoint URL" in str(e) or "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
+            # Optionally, log the warning
+            logging.warning(f"DynamoDB unreachable, returning empty list for /list-apis: {e}")
+            return ListAPIResponse(
+                api_names=[],
+                total_count=0
+            )
+        # Otherwise, return a 500 error
         logging.error(f"Failed to list APIs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list APIs: {str(e)}")
 
