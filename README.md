@@ -57,7 +57,7 @@ NL2Flow is a powerful tool that converts natural language requests into structur
 
 1. **Find the `.env` file** in your NL2Flow folder
 2. **Open it** with Notepad (Windows) or TextEdit (Mac)
-3. **Replace** `your_openai_api_key_here` with your actual API key
+3. **Replace** `your_google_api_key_here` with your actual API key
 4. **Save** the file
 
 #### Step 4: Start the Program
@@ -252,9 +252,9 @@ chmod +x run.sh
 ### Configuration
 
 1. **Get a Google API key** from https://makersuite.google.com/app/apikey
-2. **Edit the `.env` file** and replace `your_openai_api_key_here` with your actual API key:
+2. **Edit the `.env` file** and replace `your_google_api_key_here` with your actual API key:
    ```
-   OPENAI_API_KEY=sk-your-actual-api-key-here
+   GOOGLE_API_KEY=sk-your-actual-api-key-here
    ```
 3. **Optional: Configure DynamoDB** (for schema versioning):
    ```
@@ -585,7 +585,7 @@ AWS_DEFAULT_REGION=us-east-1
 DYNAMODB_SCHEMA_TABLE=ApiSchemaSnapshots
 
 # Google AI Configuration
-OPENAI_API_KEY=your_google_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
 ```
 
 **Important Notes:**
