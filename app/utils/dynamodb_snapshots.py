@@ -319,7 +319,10 @@ def delete_all_entries():
     Returns the number of items deleted.
     """
     try:
-        response = table.scan(ProjectionExpression="api_name, timestamp")
+        response = table.scan(
+            ProjectionExpression="api_name, #ts",
+            ExpressionAttributeNames={"#ts": "timestamp"}
+        )
         items = response.get("Items", [])
         deleted_count = 0
         for item in items:
@@ -333,7 +336,8 @@ def delete_all_entries():
         # Handle pagination
         while "LastEvaluatedKey" in response:
             response = table.scan(
-                ProjectionExpression="api_name, timestamp",
+                ProjectionExpression="api_name, #ts",
+                ExpressionAttributeNames={"#ts": "timestamp"},
                 ExclusiveStartKey=response["LastEvaluatedKey"]
             )
             for item in response.get("Items", []):
