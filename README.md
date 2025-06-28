@@ -1112,10 +1112,6 @@ Once you're comfortable with the basics, you can:
 4. **Use the schema diff tool** to track changes in your systems
 5. **Integrate with your existing workflows**
 
-## 🤝 Contributing
-
-We welcome contributions! Please feel free to submit issues, feature requests, or pull requests.
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
