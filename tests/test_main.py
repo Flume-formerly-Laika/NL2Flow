@@ -614,3 +614,10 @@ def test_list_apis_dynamodb_unreachable():
         assert data["api_names"] == []
         assert data["total_count"] == 0
         assert data["api_versions"] == {}
+
+def test_delete_all_entries():
+    response = client.delete("/delete-all-entries")
+    assert response.status_code == 200
+    data = response.json()
+    assert "deleted_count" in data
+    assert isinstance(data["deleted_count"], int)

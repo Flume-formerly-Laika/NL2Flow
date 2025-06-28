@@ -311,4 +311,47 @@ def list_api_versions(api_name):
             return []
         else:
             # Re-raise unexpected errors
+            raise e
+
+def delete_all_entries():
+    """
+    Delete all entries in the DynamoDB table.
+    Returns the number of items deleted.
+    """
+    try:
+        response = table.scan(ProjectionExpression="api_name, timestamp")
+        items = response.get("Items", [])
+        deleted_count = 0
+        for item in items:
+            table.delete_item(
+                Key={
+                    "api_name": item["api_name"],
+                    "timestamp": item["timestamp"]
+                }
+            )
+            deleted_count += 1
+        # Handle pagination
+        while "LastEvaluatedKey" in response:
+            response = table.scan(
+                ProjectionExpression="api_name, timestamp",
+                ExclusiveStartKey=response["LastEvaluatedKey"]
+            )
+            for item in response.get("Items", []):
+                table.delete_item(
+                    Key={
+                        "api_name": item["api_name"],
+                        "timestamp": item["timestamp"]
+                    }
+                )
+                deleted_count += 1
+        return deleted_count
+    except Exception as e:
+        # Handle AWS errors gracefully
+        if "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
+            return 0
+        elif "ResourceNotFoundException" in str(e):
+            return 0
+        elif "EndpointConnectionError" in str(e) or "ConnectTimeoutError" in str(e):
+            return 0
+        else:
             raise e 

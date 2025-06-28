@@ -34,7 +34,7 @@ from app.utils.validator import validate_flow
 from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction, format_shopify_openapi
 
 # import DynamoDB utility
-from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version, delete_schema_snapshot, delete_api_snapshots, list_api_names, list_api_versions
+from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version, delete_schema_snapshot, delete_api_snapshots, list_api_names, list_api_versions, delete_all_entries
 
 # import schema diff engine
 from app.utils.schema_diff import diff_schema_versions
@@ -783,3 +783,18 @@ async def delete_api_get(api_name: str):
     except Exception as e:
         logging.error(f"Failed to delete API: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete API: {str(e)}")
+
+@app.delete("/delete-all-entries", tags=["DynamoDB Management"])
+async def delete_all_entries_endpoint():
+    """
+    Delete ALL entries in the DynamoDB table.
+    """
+    try:
+        deleted_count = delete_all_entries()
+        return {
+            "message": f"Deleted {deleted_count} entries from the DynamoDB table.",
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logging.error(f"Failed to delete all entries: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete all entries: {str(e)}")
