@@ -23,6 +23,7 @@ from app.main import app
 from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
 from app.utils.schema_diff import diff_schema_versions
 import pytest  # noqa: F401 - pytest is used for test discovery and markers
+from unittest.mock import patch
 
 # Configure pytest markers
 pytest_plugins = []
@@ -589,3 +590,22 @@ def test_diff_schema_versions_direct_usage():
     diff = diff_schema_versions(old, new)
     assert isinstance(diff, list)
     assert any(d["op"] == "change" and d["path"] == "a" for d in diff)
+
+def test_list_apis_normal():
+    """Test /list-apis returns a list (could be empty) and status 200."""
+    response = client.get("/list-apis")
+    assert response.status_code == 200
+    data = response.json()
+    assert "api_names" in data
+    assert "total_count" in data
+    assert isinstance(data["api_names"], list)
+    assert isinstance(data["total_count"], int)
+
+def test_list_apis_dynamodb_unreachable():
+    """Test /list-apis returns empty list and 200 if DynamoDB is unreachable."""
+    with patch("app.main.list_api_names", side_effect=Exception("Could not connect to the endpoint URL: 'https://dynamodb.us-east-1.amazonaws.com/'")):
+        response = client.get("/list-apis")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["api_names"] == []
+        assert data["total_count"] == 0
