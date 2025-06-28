@@ -33,8 +33,8 @@ if ($LASTEXITCODE -ne 0) {
 if (-not (Test-Path ".env")) {
     Write-Host "Creating .env file..." -ForegroundColor Yellow
     @"
-# OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key_here
+# Google API Configuration
+Google_API_KEY=your_google_api_key_here
 
 # Application Configuration
 PYTHONPATH=.
