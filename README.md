@@ -181,6 +181,112 @@ Server will be available at: http://localhost:8000
 
 **Result:** Shows that a new "tags" field was added
 
+### 🗄️ DynamoDB Management (NEW!)
+
+**What it does:** Manage your stored API data without logging into AWS
+
+**Features:**
+- **List all APIs:** See what APIs you have stored
+- **View API versions:** See all timestamps when each API was scraped
+- **Delete specific snapshots:** Remove individual API versions
+- **Delete entire APIs:** Remove all data for a specific API
+
+**How to use:**
+
+#### 1. List All Stored APIs
+```bash
+# View all APIs you have data for
+curl http://localhost:8000/list-apis
+```
+
+**Or visit:** `http://localhost:8000/list-apis` in your browser
+
+**Response:**
+```json
+{
+  "api_names": ["PetStore", "GitHub", "Gmail"],
+  "total_count": 3
+}
+```
+
+#### 2. View API Versions
+```bash
+# See all versions of a specific API
+curl http://localhost:8000/list-versions/PetStore
+```
+
+**Or visit:** `http://localhost:8000/list-versions/PetStore` in your browser
+
+**Response:**
+```json
+{
+  "api_name": "PetStore",
+  "versions": [
+    {
+      "timestamp": "1704067200",
+      "endpoints_count": 15,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "source_url": "https://petstore.swagger.io/v2/swagger.json",
+      "auth_type": "none"
+    }
+  ],
+  "total_count": 1
+}
+```
+
+#### 3. Delete Specific Snapshot
+```bash
+# Delete a specific API version
+curl "http://localhost:8000/delete-snapshot?api_name=PetStore&timestamp=1704067200"
+```
+
+**Or visit:** `http://localhost:8000/delete-snapshot?api_name=PetStore&timestamp=1704067200` in your browser
+
+**Response:**
+```json
+{
+  "message": "Successfully deleted 15 snapshot(s)",
+  "api_name": "PetStore",
+  "timestamp": 1704067200,
+  "deleted_count": 15
+}
+```
+
+#### 4. Delete Entire API
+```bash
+# Delete ALL data for an API
+curl "http://localhost:8000/delete-api?api_name=PetStore"
+```
+
+**Or visit:** `http://localhost:8000/delete-api?api_name=PetStore` in your browser
+
+**Response:**
+```json
+{
+  "message": "Successfully deleted 45 snapshot(s) for API 'PetStore'",
+  "api_name": "PetStore",
+  "deleted_count": 45
+}
+```
+
+#### 5. Advanced: Delete Specific Endpoint
+```bash
+# Delete only a specific endpoint from a snapshot
+curl "http://localhost:8000/delete-snapshot?api_name=PetStore&timestamp=1704067200&endpoint=/pet&method=GET"
+```
+
+**Web Interface:**
+1. **Go to:** `http://localhost:8000/docs`
+2. **Find** the "DynamoDB Management" section
+3. **Try out** any of the delete endpoints
+4. **Use the browser-friendly GET versions** for easy testing
+
+**Safety Features:**
+- **No accidental deletions:** All operations require specific parameters
+- **Clear feedback:** You get detailed information about what was deleted
+- **Count verification:** You know exactly how many items were removed
+- **Error handling:** Graceful handling of non-existent data
+
 ## 🎯 Real-World Use Cases
 
 ### 📧 Email Marketing
@@ -327,6 +433,36 @@ The server runs on `http://localhost:8000`
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`
 
+#### 11. List APIs
+- **URL**: `GET /list-apis`
+- **Purpose**: List all available APIs stored in DynamoDB
+- **Response**: List of API names and total count
+
+#### 12. List API Versions
+- **URL**: `GET /list-versions/{api_name}`
+- **Purpose**: List all versions/timestamps for a specific API
+- **Response**: Version information with metadata
+
+#### 13. Delete Snapshot (POST)
+- **URL**: `DELETE /delete-snapshot`
+- **Purpose**: Delete a specific schema snapshot
+- **Body**: `{"api_name": "PetStore", "timestamp": 1704067200, "endpoint": "/pet", "method": "GET"}`
+
+#### 14. Delete Snapshot (GET)
+- **URL**: `GET /delete-snapshot`
+- **Purpose**: Browser-friendly snapshot deletion
+- **Query Parameters**: `api_name`, `timestamp`, `endpoint` (optional), `method` (optional)
+
+#### 15. Delete API (POST)
+- **URL**: `DELETE /delete-api`
+- **Purpose**: Delete all snapshots for a specific API
+- **Body**: `{"api_name": "PetStore"}`
+
+#### 16. Delete API (GET)
+- **URL**: `GET /delete-api`
+- **Purpose**: Browser-friendly API deletion
+- **Query Parameter**: `api_name`
+
 ## 📝 API Usage Examples
 
 ### Request Format
@@ -453,6 +589,83 @@ curl -X POST "http://localhost:8000/parse-request" \
       ]
     }
   }
+}
+```
+
+#### Example 3: List All APIs
+**Request:**
+```bash
+curl -X GET "http://localhost:8000/list-apis"
+```
+
+**Response:**
+```json
+{
+  "api_names": ["PetStore", "GitHub", "Gmail"],
+  "total_count": 3
+}
+```
+
+#### Example 4: List API Versions
+**Request:**
+```bash
+curl -X GET "http://localhost:8000/list-versions/PetStore"
+```
+
+**Response:**
+```json
+{
+  "api_name": "PetStore",
+  "versions": [
+    {
+      "timestamp": "1704067200",
+      "endpoints_count": 15,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "source_url": "https://petstore.swagger.io/v2/swagger.json",
+      "auth_type": "none"
+    }
+  ],
+  "total_count": 1
+}
+```
+
+#### Example 5: Delete Specific Snapshot
+**Request:**
+```bash
+curl -X DELETE "http://localhost:8000/delete-snapshot" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "api_name": "PetStore",
+       "timestamp": 1704067200
+     }'
+```
+
+**Response:**
+```json
+{
+  "message": "Successfully deleted 15 snapshot(s)",
+  "api_name": "PetStore",
+  "timestamp": 1704067200,
+  "deleted_count": 15
+}
+```
+
+#### Example 6: Delete Entire API
+**Request:**
+```bash
+curl -X DELETE "http://localhost:8000/delete-api" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "api_name": "PetStore"
+     }'
+```
+
+**Response:**
+```json
+{
+  "message": "Successfully deleted 45 snapshot(s) for API 'PetStore'",
+  "api_name": "PetStore",
+  "deleted_count": 45
 }
 ```
 

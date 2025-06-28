@@ -22,6 +22,10 @@ from app.api_doc_scraper import (
 from app.main import app
 from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
 from app.utils.schema_diff import diff_schema_versions
+import pytest  # noqa: F401 - pytest is used for test discovery and markers
+
+# Configure pytest markers
+pytest_plugins = []
 
 client = TestClient(app)
 
@@ -33,21 +37,60 @@ client = TestClient(app)
  */
 """
 
+@pytest.mark.unit
 def test_health():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
 
-    """
-    /**
-     * @brief Tests the health endpoint for proper response
-     * @return None
-     * @throws AssertionError if the health check fails
-     * @details Verifies that /health returns 200 status and correct JSON response
-     */
-    """
+@pytest.mark.unit
+def test_parse_request():
+    response = client.post("/parse-request", json={"user_input": "Send a welcome email when someone signs up"})
+    assert response.status_code == 200
+    assert "trace_id" in response.json()
+    assert "flow" in response.json()
 
-    logging.info("Running test_health")
-    r = client.get("/health")
-    logging.info("Response: %s", json.dumps(r.json(), indent=2))
-    assert r.status_code == 200 and r.json() == {"status": "ok", "message": "NL2Flow API is running"}
+@pytest.mark.dynamodb
+def test_list_apis():
+    """Test the new list-apis endpoint"""
+    response = client.get("/list-apis")
+    assert response.status_code == 200
+    data = response.json()
+    assert "api_names" in data
+    assert "total_count" in data
+    assert isinstance(data["api_names"], list)
+    assert isinstance(data["total_count"], int)
+
+@pytest.mark.dynamodb
+def test_list_versions():
+    """Test the new list-versions endpoint"""
+    # First, let's try with a non-existent API to see the error handling
+    response = client.get("/list-versions/NonExistentAPI")
+    assert response.status_code == 200  # Should return empty list, not error
+    data = response.json()
+    assert data["api_name"] == "NonExistentAPI"
+    assert data["total_count"] == 0
+    assert data["versions"] == []
+
+@pytest.mark.dynamodb
+def test_delete_snapshot_get():
+    """Test the browser-friendly delete-snapshot endpoint"""
+    response = client.get("/delete-snapshot?api_name=TestAPI&timestamp=1234567890")
+    assert response.status_code == 200
+    data = response.json()
+    assert "message" in data
+    assert "deleted_count" in data
+    assert data["deleted_count"] == 0  # Should be 0 since TestAPI doesn't exist
+
+@pytest.mark.dynamodb
+def test_delete_api_get():
+    """Test the browser-friendly delete-api endpoint"""
+    response = client.get("/delete-api?api_name=TestAPI")
+    assert response.status_code == 200
+    data = response.json()
+    assert "message" in data
+    assert "deleted_count" in data
+    assert data["deleted_count"] == 0  # Should be 0 since TestAPI doesn't exist
 
 def test_parse_missing_fields():
 

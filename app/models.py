@@ -10,7 +10,7 @@
 
 from pydantic import BaseModel, Field
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 class NLRequest(BaseModel):
     """
@@ -46,3 +46,68 @@ class FlowResponse(BaseModel):
      * @type Dict[str, Any]
      */
     """
+
+class DeleteSnapshotRequest(BaseModel):
+    """
+    Pydantic model for deleting a specific schema snapshot.
+    
+    Attributes:
+        api_name (str): The name of the API
+        timestamp (int): The timestamp of the snapshot to delete
+        endpoint (Optional[str]): Optional endpoint filter
+        method (Optional[str]): Optional HTTP method filter
+    """
+    api_name: str = Field(..., description="The name of the API")
+    timestamp: int = Field(..., description="The timestamp of the snapshot to delete")
+    endpoint: Optional[str] = Field(None, description="Optional endpoint filter")
+    method: Optional[str] = Field(None, description="Optional HTTP method filter")
+
+class DeleteAPIRequest(BaseModel):
+    """
+    Pydantic model for deleting all snapshots for an API.
+    
+    Attributes:
+        api_name (str): The name of the API to delete all snapshots for
+    """
+    api_name: str = Field(..., description="The name of the API to delete all snapshots for")
+
+class ListAPIResponse(BaseModel):
+    """
+    Pydantic model for listing APIs response.
+    
+    Attributes:
+        api_names (List[str]): List of available API names
+        total_count (int): Total number of APIs
+    """
+    api_names: List[str] = Field(..., description="List of available API names")
+    total_count: int = Field(..., description="Total number of APIs")
+
+class APIVersionInfo(BaseModel):
+    """
+    Pydantic model for API version information.
+    
+    Attributes:
+        timestamp (str): The timestamp of the version
+        endpoints_count (int): Number of endpoints in this version
+        methods (List[str]): List of HTTP methods used
+        source_url (Optional[str]): Source URL of the API documentation
+        auth_type (Optional[str]): Authentication type used
+    """
+    timestamp: str = Field(..., description="The timestamp of the version")
+    endpoints_count: int = Field(..., description="Number of endpoints in this version")
+    methods: List[str] = Field(..., description="List of HTTP methods used")
+    source_url: Optional[str] = Field(None, description="Source URL of the API documentation")
+    auth_type: Optional[str] = Field(None, description="Authentication type used")
+
+class ListVersionsResponse(BaseModel):
+    """
+    Pydantic model for listing API versions response.
+    
+    Attributes:
+        api_name (str): The name of the API
+        versions (List[APIVersionInfo]): List of version information
+        total_count (int): Total number of versions
+    """
+    api_name: str = Field(..., description="The name of the API")
+    versions: List[APIVersionInfo] = Field(..., description="List of version information")
+    total_count: int = Field(..., description="Total number of versions")

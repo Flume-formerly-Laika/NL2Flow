@@ -16,7 +16,7 @@ import datetime
 from typing import Dict, Any
 
 # import models for request payload
-from app.models import NLRequest
+from app.models import NLRequest, DeleteSnapshotRequest, DeleteAPIRequest, ListAPIResponse, ListVersionsResponse, APIVersionInfo
 
 # import gpt handler for extracting intent
 from app.gpt_handler import extract_intent
@@ -34,7 +34,7 @@ from app.utils.validator import validate_flow
 from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction, format_shopify_openapi
 
 # import DynamoDB utility
-from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version
+from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version, delete_schema_snapshot, delete_api_snapshots, list_api_names, list_api_versions
 
 # import schema diff engine
 from app.utils.schema_diff import diff_schema_versions
@@ -129,6 +129,76 @@ async def root():
                     <p><a href="/scrape-html">Try with default example</a></p>
                     <div class="example">
                     http://localhost:8000/scrape-html?doc_url=https://developers.google.com/gmail/api/reference/rest
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/schema-snapshot</strong> - Retrieve stored schema by API name and timestamp</p>
+                    <div class="example">
+                    http://localhost:8000/schema-snapshot?api_name=PetStore&timestamp=1704067200
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">POST</span> <strong>/diff-schemas</strong> - Compare two schema versions</p>
+                    <div class="example">
+                    {
+                        "old_schema": {"product": {"title": "string", "vendor": "string"}},
+                        "new_schema": {"product": {"title": "string", "vendor": "string", "tags": "string"}}
+                    }
+                    </div>
+                </div>
+
+                <h2>🗄️ DynamoDB Management:</h2>
+                
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/list-apis</strong> - List all stored APIs</p>
+                    <p><a href="/list-apis">View all APIs</a></p>
+                    <div class="example">
+                    http://localhost:8000/list-apis
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/list-versions/{api_name}</strong> - List all versions for an API</p>
+                    <p><a href="/list-versions/PetStore">View PetStore versions</a></p>
+                    <div class="example">
+                    http://localhost:8000/list-versions/PetStore
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">DELETE</span> <strong>/delete-snapshot</strong> - Delete specific snapshot</p>
+                    <div class="example">
+                    {
+                        "api_name": "PetStore",
+                        "timestamp": 1704067200,
+                        "endpoint": "/pet",
+                        "method": "GET"
+                    }
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/delete-snapshot</strong> - Browser-friendly snapshot deletion</p>
+                    <div class="example">
+                    http://localhost:8000/delete-snapshot?api_name=PetStore&timestamp=1704067200
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">DELETE</span> <strong>/delete-api</strong> - Delete all snapshots for an API</p>
+                    <div class="example">
+                    {
+                        "api_name": "PetStore"
+                    }
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <p><span class="method">GET</span> <strong>/delete-api</strong> - Browser-friendly API deletion</p>
+                    <div class="example">
+                    http://localhost:8000/delete-api?api_name=PetStore
                     </div>
                 </div>
                 
@@ -506,3 +576,201 @@ async def diff_schemas_endpoint(payload: DiffRequest):
     # Replace newlines with <br> for better display in Swagger UI and browsers
     explanation_html = explanation.replace("\n", "<br>")
     return {"diff": diff, "explanation": explanation_html}
+
+# DynamoDB Management Endpoints
+
+@app.get("/list-apis", response_model=ListAPIResponse, tags=["DynamoDB Management"])
+async def list_apis():
+    """
+    List all available APIs stored in DynamoDB.
+    
+    Returns a list of all unique API names that have been scraped and stored.
+    This is useful for identifying which APIs you have data for before performing
+    delete operations.
+    """
+    try:
+        api_names = list_api_names()
+        return ListAPIResponse(
+            api_names=api_names,
+            total_count=len(api_names)
+        )
+    except Exception as e:
+        logging.error(f"Failed to list APIs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list APIs: {str(e)}")
+
+@app.get("/list-versions/{api_name}", response_model=ListVersionsResponse, tags=["DynamoDB Management"])
+async def list_versions(api_name: str):
+    """
+    List all versions/timestamps for a specific API.
+    
+    This endpoint shows all the different times when an API was scraped,
+    along with metadata about each version (number of endpoints, methods used, etc.).
+    This helps you identify which version to delete.
+    """
+    try:
+        versions = list_api_versions(api_name)
+        
+        # Convert to APIVersionInfo objects
+        version_info_list = []
+        for version in versions:
+            version_info = APIVersionInfo(
+                timestamp=version["timestamp"],
+                endpoints_count=version["endpoints_count"],
+                methods=version["methods"],
+                source_url=version["source_url"],
+                auth_type=version["auth_type"]
+            )
+            version_info_list.append(version_info)
+        
+        return ListVersionsResponse(
+            api_name=api_name,
+            versions=version_info_list,
+            total_count=len(version_info_list)
+        )
+    except Exception as e:
+        logging.error(f"Failed to list versions for API {api_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list versions: {str(e)}")
+
+@app.delete("/delete-snapshot", tags=["DynamoDB Management"])
+async def delete_snapshot(payload: DeleteSnapshotRequest):
+    """
+    Delete a specific schema snapshot by API name and timestamp.
+    
+    You can optionally specify an endpoint and method to delete only a specific
+    endpoint from that snapshot. If endpoint and method are not specified,
+    all entries for that API and timestamp will be deleted.
+    
+    **Warning:** This operation cannot be undone. Make sure you want to delete
+    the specified data before proceeding.
+    """
+    try:
+        deleted_count = delete_schema_snapshot(
+            api_name=payload.api_name,
+            timestamp=payload.timestamp,
+            endpoint=payload.endpoint,
+            method=payload.method
+        )
+        
+        if deleted_count == 0:
+            return {
+                "message": "No matching snapshots found to delete",
+                "api_name": payload.api_name,
+                "timestamp": payload.timestamp,
+                "endpoint": payload.endpoint,
+                "method": payload.method,
+                "deleted_count": 0
+            }
+        
+        return {
+            "message": f"Successfully deleted {deleted_count} snapshot(s)",
+            "api_name": payload.api_name,
+            "timestamp": payload.timestamp,
+            "endpoint": payload.endpoint,
+            "method": payload.method,
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logging.error(f"Failed to delete snapshot: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete snapshot: {str(e)}")
+
+@app.delete("/delete-api", tags=["DynamoDB Management"])
+async def delete_api(payload: DeleteAPIRequest):
+    """
+    Delete all schema snapshots for a specific API.
+    
+    This will remove ALL versions and ALL endpoints for the specified API.
+    This is useful when you want to completely remove an API from your database.
+    
+    **Warning:** This operation cannot be undone and will delete ALL data for
+    the specified API. Make sure you want to delete everything before proceeding.
+    """
+    try:
+        deleted_count = delete_api_snapshots(payload.api_name)
+        
+        if deleted_count == 0:
+            return {
+                "message": f"No snapshots found for API '{payload.api_name}'",
+                "api_name": payload.api_name,
+                "deleted_count": 0
+            }
+        
+        return {
+            "message": f"Successfully deleted {deleted_count} snapshot(s) for API '{payload.api_name}'",
+            "api_name": payload.api_name,
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logging.error(f"Failed to delete API: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete API: {str(e)}")
+
+# Browser-friendly versions of delete endpoints
+
+@app.get("/delete-snapshot", tags=["DynamoDB Management"])
+async def delete_snapshot_get(
+    api_name: str,
+    timestamp: int,
+    endpoint: str = None,
+    method: str = None
+):
+    """
+    Browser-friendly version of delete-snapshot endpoint.
+    
+    This allows you to delete snapshots directly from your browser by providing
+    the parameters as query parameters instead of a JSON body.
+    """
+    try:
+        deleted_count = delete_schema_snapshot(
+            api_name=api_name,
+            timestamp=timestamp,
+            endpoint=endpoint,
+            method=method
+        )
+        
+        if deleted_count == 0:
+            return {
+                "message": "No matching snapshots found to delete",
+                "api_name": api_name,
+                "timestamp": timestamp,
+                "endpoint": endpoint,
+                "method": method,
+                "deleted_count": 0
+            }
+        
+        return {
+            "message": f"Successfully deleted {deleted_count} snapshot(s)",
+            "api_name": api_name,
+            "timestamp": timestamp,
+            "endpoint": endpoint,
+            "method": method,
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logging.error(f"Failed to delete snapshot: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete snapshot: {str(e)}")
+
+@app.get("/delete-api", tags=["DynamoDB Management"])
+async def delete_api_get(api_name: str):
+    """
+    Browser-friendly version of delete-api endpoint.
+    
+    This allows you to delete all snapshots for an API directly from your browser
+    by providing the API name as a query parameter.
+    """
+    try:
+        deleted_count = delete_api_snapshots(api_name)
+        
+        if deleted_count == 0:
+            return {
+                "message": f"No snapshots found for API '{api_name}'",
+                "api_name": api_name,
+                "deleted_count": 0
+            }
+        
+        return {
+            "message": f"Successfully deleted {deleted_count} snapshot(s) for API '{api_name}'",
+            "api_name": api_name,
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logging.error(f"Failed to delete API: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete API: {str(e)}")

@@ -63,4 +63,129 @@ def update_schema_snapshot(api_name, endpoint, method, schema, metadata=None, ti
     Update (overwrite) a schema snapshot for a given API, endpoint, method, and timestamp.
     If timestamp is None, use the current time.
     """
-    return store_schema_snapshot(api_name, endpoint, method, schema, metadata, timestamp) 
+    return store_schema_snapshot(api_name, endpoint, method, schema, metadata, timestamp)
+
+def delete_schema_snapshot(api_name, timestamp, endpoint=None, method=None):
+    """
+    Delete a specific schema snapshot by API name and timestamp, optionally filtered by endpoint and method.
+    Returns the number of items deleted.
+    """
+    try:
+        # If endpoint and method are specified, delete specific item
+        if endpoint and method:
+            table.delete_item(
+                Key={
+                    "api_name": api_name,
+                    "timestamp": str(timestamp)
+                },
+                ConditionExpression="endpoint = :endpoint AND #method = :method",
+                ExpressionAttributeNames={"#method": "method"},
+                ExpressionAttributeValues={
+                    ":endpoint": endpoint,
+                    ":method": method.upper()
+                }
+            )
+            return 1
+        else:
+            # Delete all items for the API and timestamp
+            items = get_schema_snapshots(api_name)
+            deleted_count = 0
+            
+            for item in items:
+                if item["timestamp"] == str(timestamp):
+                    table.delete_item(
+                        Key={
+                            "api_name": api_name,
+                            "timestamp": str(timestamp)
+                        }
+                    )
+                    deleted_count += 1
+            
+            return deleted_count
+    except Exception as e:
+        # If item doesn't exist, return 0
+        if "ConditionalCheckFailedException" in str(e):
+            return 0
+        raise e
+
+def delete_api_snapshots(api_name):
+    """
+    Delete all schema snapshots for a specific API.
+    Returns the number of items deleted.
+    """
+    try:
+        items = get_schema_snapshots(api_name)
+        deleted_count = 0
+        
+        for item in items:
+            table.delete_item(
+                Key={
+                    "api_name": api_name,
+                    "timestamp": item["timestamp"]
+                }
+            )
+            deleted_count += 1
+        
+        return deleted_count
+    except Exception as e:
+        raise e
+
+def list_api_names():
+    """
+    List all unique API names in the DynamoDB table.
+    Returns a list of API names.
+    """
+    try:
+        response = table.scan(
+            ProjectionExpression="api_name"
+        )
+        
+        # Extract unique API names
+        api_names = set()
+        for item in response.get("Items", []):
+            api_names.add(item["api_name"])
+        
+        # Handle pagination if needed
+        while "LastEvaluatedKey" in response:
+            response = table.scan(
+                ProjectionExpression="api_name",
+                ExclusiveStartKey=response["LastEvaluatedKey"]
+            )
+            for item in response.get("Items", []):
+                api_names.add(item["api_name"])
+        
+        return sorted(list(api_names))
+    except Exception as e:
+        raise e
+
+def list_api_versions(api_name):
+    """
+    List all timestamps/versions for a specific API.
+    Returns a list of timestamps with additional metadata.
+    """
+    try:
+        items = get_schema_snapshots(api_name)
+        
+        # Group by timestamp and collect metadata
+        versions = {}
+        for item in items:
+            timestamp = item["timestamp"]
+            if timestamp not in versions:
+                versions[timestamp] = {
+                    "timestamp": timestamp,
+                    "endpoints_count": 0,
+                    "methods": set(),
+                    "source_url": item.get("metadata", {}).get("source_url"),
+                    "auth_type": item.get("metadata", {}).get("auth_type")
+                }
+            
+            versions[timestamp]["endpoints_count"] += 1
+            versions[timestamp]["methods"].add(item["method"])
+        
+        # Convert sets to lists for JSON serialization
+        for version in versions.values():
+            version["methods"] = list(version["methods"])
+        
+        return sorted(versions.values(), key=lambda x: x["timestamp"], reverse=True)
+    except Exception as e:
+        raise e 
