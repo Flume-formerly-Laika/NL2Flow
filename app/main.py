@@ -39,6 +39,9 @@ from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_ve
 # import schema diff engine
 from app.utils.schema_diff import diff_schema_versions
 
+# import dashboard API
+from app.dashboard_api import router as dashboard_router
+
 app = FastAPI(
     title="NL2Flow API",
     description="Natural Language to Automation Flow Generator with API Documentation Scraper",
@@ -798,3 +801,6 @@ async def delete_all_entries_endpoint():
     except Exception as e:
         logging.error(f"Failed to delete all entries: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete all entries: {str(e)}")
+
+# Include dashboard routes
+app.include_router(dashboard_router)

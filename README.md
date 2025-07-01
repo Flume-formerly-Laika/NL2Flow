@@ -191,6 +191,247 @@ Server will be available at: http://localhost:8000
 - **Delete specific snapshots:** Remove individual API versions
 - **Delete entire APIs:** Remove all data for a specific API
 
+## 🚨 Watchdog and Alerting System (Week 3 - NEW!)
+
+**What it does:** Automatically monitor APIs for changes and notify you when updates are detected
+
+**Features:**
+- **🕐 Scheduled Scanning:** Daily automated API scans via AWS EventBridge
+- **🔍 Change Detection:** Compare current and previous schemas automatically
+- **📢 Smart Notifications:** SNS alerts when changes are detected
+- **📊 Admin Dashboard:** Beautiful React interface for monitoring and management
+- **🔄 Manual Rescans:** Trigger immediate scans for specific APIs
+
+### 🎯 How the Watchdog System Works
+
+1. **Daily Automation:** EventBridge triggers Lambda function every 24 hours
+2. **API Scanning:** Lambda scrapes configured APIs and stores schemas
+3. **Change Detection:** Compares new schemas with previous versions
+4. **Smart Alerts:** Sends SNS notifications only when changes are found
+5. **Dashboard Updates:** Real-time UI shows scan status and changes
+
+### 🛠️ Admin Dashboard Features
+
+#### 📈 Overview Dashboard
+- **Real-time metrics:** Total APIs, endpoints, success rates
+- **Recent activity:** Latest changes and scan results
+- **Quick actions:** Manual scans and navigation
+
+#### 📋 API Summary
+- **Comprehensive list:** All monitored APIs with status
+- **Change tracking:** Added, removed, and modified endpoints
+- **Rescan capability:** Manual trigger for immediate updates
+- **Search and filter:** Find specific APIs quickly
+
+#### 📊 Scan History
+- **Detailed logs:** Complete scan history with timestamps
+- **Success metrics:** Success rates and failure analysis
+- **Performance tracking:** Scan duration and resource usage
+
+#### 🔍 API Changes Detail
+- **Version comparison:** Side-by-side schema differences
+- **Change timeline:** Historical view of all modifications
+- **Endpoint details:** Current schema information
+
+### 🚀 Getting Started with Watchdog System
+
+#### 1. Deploy AWS Infrastructure
+```bash
+cd infrastructure
+aws cloudformation create-stack \
+  --stack-name nl2flow-watchdog \
+  --template-body file://cloudformation.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+#### 2. Start the Dashboard
+```bash
+cd dashboard/frontend
+npm install
+npm start
+```
+
+#### 3. Access the Dashboard
+- **URL:** http://localhost:3000
+- **Features:** Real-time monitoring, manual rescans, change history
+
+#### 4. Configure SNS Notifications
+```bash
+aws sns subscribe \
+  --topic-arn arn:aws:sns:us-east-1:YOUR_ACCOUNT:dev-api-schema-updated \
+  --protocol email \
+  --notification-endpoint your-email@example.com
+```
+
+### 📱 Dashboard API Endpoints
+
+#### 1. Dashboard Overview
+- **URL**: `GET /dashboard/scan-history`
+- **Purpose**: Get recent scan history with metadata
+- **Response**: List of scan results with timestamps and success rates
+
+#### 2. API Summary
+- **URL**: `GET /dashboard/api-summary`
+- **Purpose**: Get summary of all APIs with their status and recent changes
+- **Response**: API list with change detection and scan status
+
+#### 3. Manual Rescan
+- **URL**: `POST /dashboard/rescan-api`
+- **Purpose**: Trigger immediate rescan of a specific API
+- **Body**: `{"api_name": "PetStore", "openapi_url": "https://petstore.swagger.io/v2/swagger.json"}`
+
+#### 4. API Changes Detail
+- **URL**: `GET /dashboard/api-changes/{api_name}`
+- **Purpose**: Get detailed change history for a specific API
+- **Response**: Complete scan history and endpoint details
+
+### 🔧 Configuration Options
+
+#### Lambda Function Settings
+```bash
+# Update scan frequency (default: daily)
+aws events put-rule \
+  --name dev-daily-api-scan \
+  --schedule-expression "rate(6 hours)"  # Every 6 hours
+
+# Update APIs to monitor
+# Edit lambda_functions/scheduled_scanner.py
+apis_to_scan = [
+    {'name': 'PetStore', 'url': 'https://petstore.swagger.io/v2/swagger.json'},
+    {'name': 'GitHub', 'url': 'https://api.github.com/v3/swagger.json'},
+    # Add your APIs here
+]
+```
+
+#### SNS Notification Settings
+```bash
+# Add multiple email subscriptions
+aws sns subscribe \
+  --topic-arn arn:aws:sns:us-east-1:YOUR_ACCOUNT:dev-api-schema-updated \
+  --protocol email \
+  --notification-endpoint team@yourcompany.com
+
+# Add Slack integration (via Lambda)
+aws sns subscribe \
+  --topic-arn arn:aws:sns:us-east-1:YOUR_ACCOUNT:dev-api-schema-updated \
+  --protocol lambda \
+  --notification-endpoint arn:aws:lambda:us-east-1:YOUR_ACCOUNT:function:slack-notifier
+```
+
+### 📊 Monitoring and Analytics
+
+#### CloudWatch Metrics
+- **Lambda invocations:** Track scan frequency and success
+- **DynamoDB operations:** Monitor database performance
+- **SNS delivery:** Ensure notifications are sent successfully
+
+#### Dashboard Analytics
+- **Success rates:** Track API scan reliability
+- **Change frequency:** Identify APIs with frequent updates
+- **Response times:** Monitor scan performance
+
+### 🛡️ Security Features
+
+#### AWS Security
+- **IAM roles:** Least privilege access for Lambda functions
+- **VPC isolation:** Optional network isolation
+- **Encryption:** All data encrypted at rest and in transit
+
+#### Dashboard Security
+- **CORS protection:** Configured for secure API access
+- **Input validation:** All user inputs validated
+- **Error handling:** Graceful error management
+
+### 💰 Cost Optimization
+
+#### Free Tier Usage
+- **Lambda:** 1M free requests per month
+- **EventBridge:** 1M free events per month
+- **SNS:** 1M free publishes per month
+- **DynamoDB:** 25GB free storage
+
+#### Cost Monitoring
+```bash
+# Monitor Lambda costs
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/Lambda \
+  --metric-name Duration \
+  --dimensions Name=FunctionName,Value=dev-scheduled-api-scanner \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-01-02T00:00:00Z \
+  --period 3600 \
+  --statistics Average
+```
+
+### 🔄 Integration with AI Core
+
+The watchdog system is designed to feed detected changes into your AI core for self-healing:
+
+#### SNS Message Format
+```json
+{
+  "api_name": "PetStore",
+  "timestamp": 1704067200,
+  "changes_summary": {
+    "added_count": 2,
+    "removed_count": 1,
+    "modified_count": 3
+  },
+  "changes": {
+    "added_endpoints": [
+      {"path": "/pets", "method": "GET"}
+    ],
+    "removed_endpoints": [
+      {"path": "/old-endpoint", "method": "POST"}
+    ],
+    "modified_endpoints": [
+      {
+        "path": "/pet",
+        "method": "PUT",
+        "old_schema": {...},
+        "new_schema": {...}
+      }
+    ]
+  }
+}
+```
+
+#### AI Core Integration
+```python
+# Example Lambda function to handle SNS messages
+def lambda_handler(event, context):
+    for record in event['Records']:
+        message = json.loads(record['Sns']['Message'])
+        
+        # Process changes for AI core
+        if message['changes_summary']['added_count'] > 0:
+            # Handle new endpoints
+            handle_new_endpoints(message['api_name'], message['changes']['added_endpoints'])
+        
+        if message['changes_summary']['modified_count'] > 0:
+            # Handle schema changes
+            handle_schema_changes(message['api_name'], message['changes']['modified_endpoints'])
+```
+
+### 🎯 Success Metrics
+
+#### User Story 1: Daily API Scans ✅
+- ✅ EventBridge rule triggers Lambda daily
+- ✅ Scan is idempotent, retriable, and logs last execution
+- ✅ Handles multiple APIs in single scan
+
+#### User Story 2: Change Detection and Notifications ✅
+- ✅ Comparison logic runs after each scan
+- ✅ SNS topic triggered for non-empty diffs
+- ✅ SNS payload includes API name, diff summary, timestamp
+- ✅ Detailed change information for AI core integration
+
+#### User Story 3: Admin Dashboard ✅
+- ✅ Web dashboard lists each API, last scan time, and diff summary
+- ✅ UI updates in near-real-time (30-second polling)
+- ✅ Includes "Rescan" button per API
+- ✅ Comprehensive monitoring and management interface
+
 **How to use:**
 
 #### 1. List All Stored APIs

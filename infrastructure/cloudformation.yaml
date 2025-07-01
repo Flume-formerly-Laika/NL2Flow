@@ -1,0 +1,199 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'NL2Flow Watchdog and Alerting Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+  
+  DynamoDBTableName:
+    Type: String
+    Default: ApiSchemaSnapshots
+    Description: DynamoDB table name for API schema snapshots
+  
+  ScanMetadataTableName:
+    Type: String
+    Default: ApiScanMetadata
+    Description: DynamoDB table name for scan metadata
+
+Resources:
+  # DynamoDB Tables
+  ApiSchemaSnapshotsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDBTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: api_name
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: api_name
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: NL2Flow
+
+  ApiScanMetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref ScanMetadataTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scan_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scan_id
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: NL2Flow
+
+  # SNS Topic for API Schema Change Notifications
+  ApiSchemaUpdatedTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${Environment}-api-schema-updated'
+      DisplayName: !Sub 'API Schema Changes - ${Environment}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: NL2Flow
+
+  # IAM Role for Lambda Function
+  ScheduledScannerLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Environment}-scheduled-scanner-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource:
+                  - !GetAtt ApiSchemaSnapshotsTable.Arn
+                  - !GetAtt ApiScanMetadataTable.Arn
+        - PolicyName: SNSPublish
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref ApiSchemaUpdatedTopic
+
+  # Lambda Function for Scheduled API Scanning
+  ScheduledScannerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-scheduled-api-scanner'
+      Runtime: python3.9
+      Handler: scheduled_scanner.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Hello from Lambda!')
+              }
+      Role: !GetAtt ScheduledScannerLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          DYNAMODB_SCHEMA_TABLE: !Ref DynamoDBTableName
+          SCAN_METADATA_TABLE: !Ref ScanMetadataTableName
+          SNS_TOPIC_ARN: !Ref ApiSchemaUpdatedTopic
+          ENVIRONMENT: !Ref Environment
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: NL2Flow
+
+  # EventBridge Rule for Daily API Scanning
+  DailyApiScanRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${Environment}-daily-api-scan'
+      Description: 'Trigger daily API schema scanning'
+      ScheduleExpression: 'rate(1 day)'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ScheduledScannerLambda.Arn
+          Id: ScheduledApiScanner
+
+  # Permission for EventBridge to invoke Lambda
+  EventBridgeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledScannerLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyApiScanRule.Arn
+
+  # CloudWatch Log Group for Lambda
+  ScheduledScannerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ScheduledScannerLambda}'
+      RetentionInDays: 14
+
+Outputs:
+  ApiSchemaSnapshotsTableName:
+    Description: 'DynamoDB table name for API schema snapshots'
+    Value: !Ref ApiSchemaSnapshotsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiSchemaSnapshotsTable'
+
+  ApiScanMetadataTableName:
+    Description: 'DynamoDB table name for scan metadata'
+    Value: !Ref ApiScanMetadataTable
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiScanMetadataTable'
+
+  ApiSchemaUpdatedTopicArn:
+    Description: 'SNS Topic ARN for API schema change notifications'
+    Value: !Ref ApiSchemaUpdatedTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiSchemaUpdatedTopic'
+
+  ScheduledScannerLambdaArn:
+    Description: 'Lambda function ARN for scheduled API scanning'
+    Value: !GetAtt ScheduledScannerLambda.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ScheduledScannerLambda'
+
+  DailyApiScanRuleArn:
+    Description: 'EventBridge rule ARN for daily API scanning'
+    Value: !GetAtt DailyApiScanRule.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DailyApiScanRule' 
