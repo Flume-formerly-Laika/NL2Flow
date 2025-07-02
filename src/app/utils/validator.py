@@ -19,7 +19,7 @@ from jsonschema import validate
  */
 """
 # Load the JSON schema for email flow validation
-with open("app/schemas/email_flow_schema.json") as f:
+with open("src/app/schemas/email_flow_schema.json") as f:
     schema = json.load(f)
 
 

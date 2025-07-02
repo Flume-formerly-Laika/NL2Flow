@@ -246,7 +246,7 @@ aws cloudformation create-stack \
 
 #### 2. Start the Dashboard
 ```bash
-cd dashboard/frontend
+cd src/frontend
 npm install
 npm start
 ```
@@ -1465,27 +1465,9 @@ pytest -v
 
 ```
 NL2Flow/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                 # FastAPI application
-│   ├── models.py               # Data models
-│   ├── gpt_handler.py          # Google Gemini integration
-│   ├── transformer.py          # Flow generation logic
-│   ├── api_doc_scraper.py      # API documentation scraping
-│   ├── rules/
-│   │   ├── __init__.py
-│   │   ├── field_mapper.py     # Field mapping rules
-│   │   └── field_mapping.krb   # Knowledge base
-│   ├── schemas/
-│   │   └── email_flow_schema.json
-│   ├── static/
-│   │   └── favicon.ico
-│   └── utils/
-│       ├── __init__.py
-│       ├── logger.py           # Request logging
-│       ├── validator.py        # Schema validation
-│       ├── dynamodb_snapshots.py  # Schema versioning
-│       └── schema_diff.py      # Schema comparison
+├── src/
+│   ├── app/
+│   └── frontend/
 ├── tests/
 │   ├── __init__.py
 │   ├── test_main.py            # Main API tests
