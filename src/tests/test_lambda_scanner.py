@@ -13,14 +13,14 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../lambda_functions'))
 
 # Import the lambda function
-from scheduled_scanner import lambda_handler, scrape_openapi, compare_schemas, send_sns_notification
+from app.lambda_functions.scheduled_scanner import lambda_handler, scrape_openapi, compare_schemas, send_sns_notification
 
 @pytest.fixture
 def mock_boto3_clients():
     """Mock AWS clients"""
-    with patch('scheduled_scanner.sns') as mock_sns, \
-         patch('scheduled_scanner.dynamodb') as mock_dynamodb, \
-         patch('scheduled_scanner.table') as mock_table:
+    with patch('app.lambda_functions.scheduled_scanner.sns') as mock_sns, \
+         patch('app.lambda_functions.scheduled_scanner.dynamodb') as mock_dynamodb, \
+         patch('app.lambda_functions.scheduled_scanner.table') as mock_table:
         
         mock_sns.publish.return_value = {'MessageId': 'test-message-id'}
         mock_table.put_item.return_value = None
@@ -61,7 +61,7 @@ def sample_context():
 
 def test_scrape_openapi_success():
     """Test successful OpenAPI scraping"""
-    with patch('scheduled_scanner.requests.get') as mock_get:
+    with patch('app.lambda_functions.scheduled_scanner.requests.get') as mock_get:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "paths": {
@@ -88,7 +88,7 @@ def test_scrape_openapi_success():
 
 def test_scrape_openapi_failure():
     """Test OpenAPI scraping failure"""
-    with patch('scheduled_scanner.requests.get', side_effect=Exception("Network error")):
+    with patch('app.lambda_functions.scheduled_scanner.requests.get', side_effect=Exception("Network error")):
         endpoints = scrape_openapi("https://invalid-url.com")
         assert endpoints == []
 
@@ -146,7 +146,7 @@ def test_send_sns_notification(mock_boto3_clients):
 
 def test_lambda_handler_success(mock_boto3_clients, sample_event, sample_context):
     """Test successful Lambda handler execution"""
-    with patch('scheduled_scanner.scrape_openapi') as mock_scrape:
+    with patch('app.lambda_functions.scheduled_scanner.scrape_openapi') as mock_scrape:
         mock_scrape.return_value = [
             {
                 'method': 'GET',
@@ -167,8 +167,8 @@ def test_lambda_handler_success(mock_boto3_clients, sample_event, sample_context
 
 def test_lambda_handler_with_changes(mock_boto3_clients, sample_event, sample_context):
     """Test Lambda handler with detected changes"""
-    with patch('scheduled_scanner.scrape_openapi') as mock_scrape, \
-         patch('scheduled_scanner.send_sns_notification') as mock_sns:
+    with patch('app.lambda_functions.scheduled_scanner.scrape_openapi') as mock_scrape, \
+         patch('app.lambda_functions.scheduled_scanner.send_sns_notification') as mock_sns:
         
         # Mock current scan
         mock_scrape.return_value = [
@@ -201,7 +201,7 @@ def test_lambda_handler_with_changes(mock_boto3_clients, sample_event, sample_co
 
 def test_lambda_handler_no_apis_found(mock_boto3_clients, sample_event, sample_context):
     """Test Lambda handler when no APIs are found"""
-    with patch('scheduled_scanner.scrape_openapi') as mock_scrape:
+    with patch('app.lambda_functions.scheduled_scanner.scrape_openapi') as mock_scrape:
         mock_scrape.return_value = []  # No endpoints found
         
         result = lambda_handler(sample_event, sample_context)
@@ -212,7 +212,7 @@ def test_lambda_handler_no_apis_found(mock_boto3_clients, sample_event, sample_c
 
 def test_lambda_handler_error_handling(mock_boto3_clients, sample_event, sample_context):
     """Test Lambda handler error handling"""
-    with patch('scheduled_scanner.scrape_openapi', side_effect=Exception("Test error")):
+    with patch('app.lambda_functions.scheduled_scanner.scrape_openapi', side_effect=Exception("Test error")):
         result = lambda_handler(sample_event, sample_context)
         
         assert result['statusCode'] == 200  # Should still return 200 even with errors
@@ -233,7 +233,7 @@ def test_lambda_handler_environment_variables():
 
 def test_store_schema_snapshot(mock_boto3_clients):
     """Test storing schema snapshot"""
-    from scheduled_scanner import store_schema_snapshot
+    from app.lambda_functions.scheduled_scanner import store_schema_snapshot
     
     endpoints = [
         {
@@ -254,7 +254,7 @@ def test_store_schema_snapshot(mock_boto3_clients):
 
 def test_get_previous_schema(mock_boto3_clients):
     """Test getting previous schema"""
-    from scheduled_scanner import get_previous_schema
+    from app.lambda_functions.scheduled_scanner import get_previous_schema
     
     # Mock query responses
     mock_boto3_clients['table'].query.side_effect = [
@@ -276,7 +276,7 @@ def test_get_previous_schema(mock_boto3_clients):
 
 def test_get_previous_schema_no_data(mock_boto3_clients):
     """Test getting previous schema when no data exists"""
-    from scheduled_scanner import get_previous_schema
+    from app.lambda_functions.scheduled_scanner import get_previous_schema
     
     mock_boto3_clients['table'].query.return_value = {'Items': []}
     
@@ -286,8 +286,8 @@ def test_get_previous_schema_no_data(mock_boto3_clients):
 
 def test_lambda_handler_scan_metadata_storage(mock_boto3_clients, sample_event, sample_context):
     """Test that scan metadata is stored in DynamoDB"""
-    with patch('scheduled_scanner.scrape_openapi') as mock_scrape, \
-         patch('scheduled_scanner.dynamodb.Table') as mock_metadata_table:
+    with patch('app.lambda_functions.scheduled_scanner.scrape_openapi') as mock_scrape, \
+         patch('app.lambda_functions.scheduled_scanner.dynamodb.Table') as mock_metadata_table:
         
         mock_scrape.return_value = [
             {
