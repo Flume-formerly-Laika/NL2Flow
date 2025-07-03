@@ -6,6 +6,7 @@
 
 # import json for loading JSON schema
 import json
+import os
 
 # import jsonschema for validation
 from jsonschema import validate
@@ -19,7 +20,9 @@ from jsonschema import validate
  */
 """
 # Load the JSON schema for email flow validation
-with open("src/app/schemas/email_flow_schema.json") as f:
+schema_path = os.path.join(os.path.dirname(__file__), '..', 'schemas', 'email_flow_schema.json')
+schema_path = os.path.abspath(schema_path)
+with open(schema_path) as f:
     schema = json.load(f)
 
 
