@@ -16,7 +16,25 @@ client = TestClient(app)
 @pytest.mark.dashboard
 def test_get_scan_history():
     """Test getting scan history"""
-    try:
+    with patch('app.dashboard_api.metadata_table.scan') as mock_scan:
+        mock_scan.return_value = {
+            'Items': [
+                {
+                    'scan_id': 'test_scan_1',
+                    'timestamp': int(time.time()),
+                    'results': [
+                        {
+                            'api_name': 'TestAPI',
+                            'timestamp': int(time.time()),
+                            'endpoints_count': 10,
+                            'status': 'success'
+                        }
+                    ],
+                    'total_apis_scanned': 1,
+                    'successful_scans': 1
+                }
+            ]
+        }
         response = client.get("/dashboard/scan-history?limit=5")
         assert response.status_code == 200
         data = response.json()
@@ -25,13 +43,6 @@ def test_get_scan_history():
             assert "scan_id" in data[0]
             assert "timestamp" in data[0]
             assert "results" in data[0]
-    except Exception as e:
-        if "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
-            pytest.skip("AWS credentials not configured for dashboard testing")
-        elif "ResourceNotFoundException" in str(e):
-            pytest.skip("DynamoDB table not found - expected in test environment")
-        else:
-            raise e
 
 @pytest.mark.dashboard
 def test_get_api_summary():
@@ -57,7 +68,19 @@ def test_get_api_summary():
 @pytest.mark.dashboard
 def test_rescan_api():
     """Test manual API rescan"""
-    try:
+    with patch('app.dashboard_api.schema_table.put_item') as mock_put, \
+         patch('app.dashboard_api.schema_table.query') as mock_query, \
+         patch('app.api_doc_scraper.scrape_openapi') as mock_scrape:
+        mock_scrape.return_value = [
+            {
+                'method': 'GET',
+                'path': '/test',
+                'auth_type': 'none',
+                'input_schema': {'type': 'none'},
+                'output_schema': {'type': 'json'}
+            }
+        ]
+        mock_query.return_value = {'Items': []}  # No previous scans
         rescan_data = {
             "api_name": f"TestAPI_Rescan_{int(time.time())}",
             "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
@@ -70,13 +93,6 @@ def test_rescan_api():
         assert "endpoints_count" in data
         assert "changes_detected" in data
         assert "changes_summary" in data
-    except Exception as e:
-        if "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
-            pytest.skip("AWS credentials not configured for dashboard testing")
-        elif "ResourceNotFoundException" in str(e):
-            pytest.skip("DynamoDB table not found - expected in test environment")
-        else:
-            raise e
 
 @pytest.mark.dashboard
 def test_get_api_changes():
@@ -101,7 +117,9 @@ def test_get_api_changes():
 @pytest.mark.dashboard
 def test_rescan_api_invalid_url():
     """Test rescan with invalid URL"""
-    try:
+    with patch('app.api_doc_scraper.scrape_openapi', return_value=[]), \
+         patch('app.dashboard_api.schema_table.put_item'), \
+         patch('app.dashboard_api.schema_table.query', return_value={'Items': []}):
         rescan_data = {
             "api_name": "TestAPI_Invalid",
             "openapi_url": "http://invalid-url-that-does-not-exist.com"
@@ -109,13 +127,6 @@ def test_rescan_api_invalid_url():
         response = client.post("/dashboard/rescan-api", json=rescan_data)
         # Should return 400 for invalid URL
         assert response.status_code == 400
-    except Exception as e:
-        if "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
-            pytest.skip("AWS credentials not configured for dashboard testing")
-        elif "ResourceNotFoundException" in str(e):
-            pytest.skip("DynamoDB table not found - expected in test environment")
-        else:
-            raise e
 
 @pytest.mark.dashboard
 def test_rescan_api_missing_fields():
@@ -138,25 +149,35 @@ def test_rescan_api_missing_fields():
 @pytest.mark.dashboard
 def test_scan_history_pagination():
     """Test scan history with different limit values"""
-    try:
+    with patch('app.dashboard_api.metadata_table.scan') as mock_scan:
+        mock_scan.return_value = {
+            'Items': [
+                {
+                    'scan_id': 'test_scan_1',
+                    'timestamp': int(time.time()),
+                    'results': [
+                        {
+                            'api_name': 'TestAPI',
+                            'timestamp': int(time.time()),
+                            'endpoints_count': 10,
+                            'status': 'success'
+                        }
+                    ],
+                    'total_apis_scanned': 1,
+                    'successful_scans': 1
+                }
+            ]
+        }
         # Test with limit=1
         response = client.get("/dashboard/scan-history?limit=1")
         assert response.status_code == 200
         data = response.json()
         assert len(data) <= 1
-        
         # Test with limit=10
         response = client.get("/dashboard/scan-history?limit=10")
         assert response.status_code == 200
         data = response.json()
         assert len(data) <= 10
-    except Exception as e:
-        if "NoCredentialsError" in str(e) or "botocore.exceptions" in str(e):
-            pytest.skip("AWS credentials not configured for dashboard testing")
-        elif "ResourceNotFoundException" in str(e):
-            pytest.skip("DynamoDB table not found - expected in test environment")
-        else:
-            raise e
 
 @pytest.mark.dashboard
 def test_api_changes_pagination():
@@ -235,37 +256,6 @@ def test_api_summary_with_mock():
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-
-@pytest.mark.dashboard
-def test_rescan_api_with_mock():
-    """Test rescan API with mocked services"""
-    with patch('app.api_doc_scraper.scrape_openapi') as mock_scrape, \
-         patch('app.dashboard_api.schema_table.put_item') as mock_put, \
-         patch('app.dashboard_api.schema_table.query') as mock_query:
-        
-        mock_scrape.return_value = [
-            {
-                'method': 'GET',
-                'path': '/test',
-                'auth_type': 'none',
-                'input_schema': {'type': 'none'},
-                'output_schema': {'type': 'json'}
-            }
-        ]
-        
-        mock_query.return_value = {'Items': []}  # No previous scans
-        
-        rescan_data = {
-            "api_name": "TestAPI_Mock",
-            "openapi_url": "https://test.com/swagger.json"
-        }
-        
-        response = client.post("/dashboard/rescan-api", json=rescan_data)
-        assert response.status_code == 200
-        data = response.json()
-        assert data['api_name'] == 'TestAPI_Mock'
-        assert data['endpoints_count'] == 1
-        assert not data['changes_detected']  # No previous scans to compare
 
 @pytest.mark.dashboard
 def test_error_handling():

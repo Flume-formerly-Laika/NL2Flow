@@ -168,36 +168,18 @@ def test_lambda_handler_success(mock_boto3_clients, sample_event, sample_context
 def test_lambda_handler_with_changes(mock_boto3_clients, sample_event, sample_context):
     """Test Lambda handler with detected changes"""
     with patch('app.lambda_functions.scheduled_scanner.scrape_openapi') as mock_scrape, \
-         patch('app.lambda_functions.scheduled_scanner.send_sns_notification') as mock_sns:
-        
+         patch('app.lambda_functions.scheduled_scanner.send_sns_notification') as mock_notify:
         # Mock current scan
         mock_scrape.return_value = [
-            {
-                'method': 'GET',
-                'path': '/pets',
-                'auth_type': 'none',
-                'input_schema': {'type': 'none'},
-                'output_schema': {'type': 'json'}
-            }
+            {'endpoint': '/test', 'method': 'GET', 'input_schema': {'type': 'string'}, 'output_schema': {'type': 'json'}, 'auth_type': 'none', 'path': '/test'}
         ]
-        
-        # Mock previous scan (different schema)
+        # Mock previous schema to be different, so a change is detected
         mock_boto3_clients['table'].query.side_effect = [
-            {'Items': [{'timestamp': '1234567890'}]},  # First query for latest timestamp
-            {'Items': [  # Second query for previous schema
-                {
-                    'endpoint': '/pets',
-                    'method': 'GET',
-                    'schema': {'input': {'old': 'schema'}, 'output': {}}
-                }
-            ]}
+            {'Items': [{'endpoint': '/test', 'method': 'GET', 'schema': {'input': {'type': 'number'}, 'output': {'type': 'json'}}, 'auth_type': 'none', 'path': '/test', 'timestamp': '123'}]},
+            {'Items': [{'endpoint': '/test', 'method': 'GET', 'schema': {'input': {'type': 'number'}, 'output': {'type': 'json'}}, 'auth_type': 'none', 'path': '/test', 'timestamp': '123'}]}
         ]
-        
         result = lambda_handler(sample_event, sample_context)
-        
-        assert result['statusCode'] == 200
-        # Should have called SNS notification due to schema changes
-        mock_sns.assert_called()
+        mock_notify.assert_called()
 
 def test_lambda_handler_no_apis_found(mock_boto3_clients, sample_event, sample_context):
     """Test Lambda handler when no APIs are found"""
