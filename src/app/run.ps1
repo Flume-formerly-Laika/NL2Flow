@@ -57,8 +57,8 @@ if (-not $env:OPENAI_API_KEY -or $env:OPENAI_API_KEY -eq "your_openai_api_key_he
 }
 
 # Verify the main module exists
-if (-not (Test-Path "src/app/main.py")) {
-    Write-Error "src/app/main.py not found. Make sure you're in the correct directory."
+if (-not (Test-Path "main.py")) {
+    Write-Error "main.py not found. Make sure you're in the correct directory."
     exit 1
 }
 
@@ -71,7 +71,7 @@ Write-Host ""
 
 # Start the FastAPI server with error handling
 try {
-    uvicorn src.app.main:app --reload --host 0.0.0.0 --port 8000
+    uvicorn main:app --reload --host 0.0.0.0 --port 8000
 } catch {
     Write-Error "Failed to start the server. Error: $_"
     Write-Host "Common fixes:" -ForegroundColor Yellow
