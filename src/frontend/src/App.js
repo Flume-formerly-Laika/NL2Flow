@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import Dashboard from './components/Dashboard';
-import ApiSummary from './components/ApiSummary';
-import ScanHistory from './components/ScanHistory';
-import ApiChanges from './components/ApiChanges';
-import Navbar from './components/Navbar';
+import Dashboard from '../components/Dashboard';
+import ApiSummary from '../components/ApiSummary';
+import ScanHistory from '../components/ScanHistory';
+import ApiChanges from '../components/ApiChanges';
+import Navbar from '../components/Navbar';
 import './App.css';
 
 const queryClient = new QueryClient();
