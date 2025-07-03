@@ -230,9 +230,12 @@ async def rescan_api(request: RescanRequest):
     """Trigger a manual rescan of a specific API."""
     try:
         # Scrape current schema
-        current_endpoints = scrape_openapi(request.openapi_url)
+        try:
+            current_endpoints = scrape_openapi(request.openapi_url)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid OpenAPI URL: {str(e)}")
         if not current_endpoints:
-            raise HTTPException(status_code=400, detail=f"No endpoints found for {request.api_name}")
+            raise HTTPException(status_code=400, detail=f"Invalid OpenAPI URL or no endpoints found for {request.api_name}")
         
         # Store current schema
         timestamp = int(time.time())

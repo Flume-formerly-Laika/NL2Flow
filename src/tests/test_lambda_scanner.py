@@ -169,14 +169,14 @@ def test_lambda_handler_with_changes(mock_boto3_clients, sample_event, sample_co
     """Test Lambda handler with detected changes"""
     with patch('app.lambda_functions.scheduled_scanner.scrape_openapi') as mock_scrape, \
          patch('app.lambda_functions.scheduled_scanner.send_sns_notification') as mock_notify:
-        # Mock current scan
+        # Mock current scan (new schema)
         mock_scrape.return_value = [
             {'endpoint': '/test', 'method': 'GET', 'input_schema': {'type': 'string'}, 'output_schema': {'type': 'json'}, 'auth_type': 'none', 'path': '/test'}
         ]
-        # Mock previous schema to be different, so a change is detected
+        # Mock previous schema (different input_schema)
         mock_boto3_clients['table'].query.side_effect = [
-            {'Items': [{'endpoint': '/test', 'method': 'GET', 'schema': {'input': {'type': 'number'}, 'output': {'type': 'json'}}, 'auth_type': 'none', 'path': '/test', 'timestamp': '123'}]},
-            {'Items': [{'endpoint': '/test', 'method': 'GET', 'schema': {'input': {'type': 'number'}, 'output': {'type': 'json'}}, 'auth_type': 'none', 'path': '/test', 'timestamp': '123'}]}
+            {'Items': [{'endpoint': '/test', 'method': 'GET', 'schema': {'input': {'type': 'number'}, 'output': {'type': 'json'}}, 'auth_type': 'none', 'path': '/test', 'timestamp': '123'}]},  # latest timestamp
+            {'Items': [{'endpoint': '/test', 'method': 'GET', 'schema': {'input': {'type': 'number'}, 'output': {'type': 'json'}}, 'auth_type': 'none', 'path': '/test', 'timestamp': '123'}]}  # previous schema
         ]
         result = lambda_handler(sample_event, sample_context)
         mock_notify.assert_called()
