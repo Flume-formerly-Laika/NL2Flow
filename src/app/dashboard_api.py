@@ -11,9 +11,9 @@ from datetime import datetime, timezone
 import time
 from pydantic import BaseModel
 
-from app.utils.dynamodb_snapshots import get_schema_by_version
-from app.utils.schema_diff import diff_schema_versions
-from app.api_doc_scraper import scrape_openapi
+from utils.dynamodb_snapshots import get_schema_by_version
+from utils.schema_diff import diff_schema_versions
+from api_doc_scraper import scrape_openapi
 
 router = APIRouter(prefix="/dashboard", tags=["Admin Dashboard"])
 

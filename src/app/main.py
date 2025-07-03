@@ -16,31 +16,31 @@ import datetime
 from typing import Dict, Any
 
 # import models for request payload
-from app.models import NLRequest, DeleteSnapshotRequest, DeleteAPIRequest, ListAPIResponse, ListVersionsResponse, APIVersionInfo
+from models import NLRequest, DeleteSnapshotRequest, DeleteAPIRequest, ListAPIResponse, ListVersionsResponse, APIVersionInfo
 
 # import gpt handler for extracting intent
-from app.gpt_handler import extract_intent
+from gpt_handler import extract_intent
 
 # import transformer for building flow JSON and utils for logging and validation
-from app.transformer import build_flow_json
+from transformer import build_flow_json
 
 # import logger for logging requests
-from app.utils.logger import log_request
+from utils.logger import log_request
 
 # import validator for validating the flow against JSON schema
-from app.utils.validator import validate_flow
+from utils.validator import validate_flow
 
 # import API doc scraper
-from app.api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction, format_shopify_openapi
+from api_doc_scraper import scrape_openapi, scrape_html_doc, validate_schema_extraction, format_shopify_openapi
 
 # import DynamoDB utility
-from app.utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version, delete_schema_snapshot, delete_api_snapshots, list_api_names, list_api_versions, delete_all_entries
+from utils.dynamodb_snapshots import store_schema_snapshot, get_schema_by_version, delete_schema_snapshot, delete_api_snapshots, list_api_names, list_api_versions, delete_all_entries
 
 # import schema diff engine
-from app.utils.schema_diff import diff_schema_versions
+from utils.schema_diff import diff_schema_versions
 
 # import dashboard API
-from app.dashboard_api import router as dashboard_router
+from dashboard_api import router as dashboard_router
 
 app = FastAPI(
     title="NL2Flow API",

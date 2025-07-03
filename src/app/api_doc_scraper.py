@@ -341,7 +341,8 @@ def scrape_html_doc(doc_url: str) -> List[Dict[str, Any]]:
             openapi_url = f"https://shopify.dev/api/admin-rest/{version}/openapi.json"
             try:
                 # Import locally to avoid circular import
-                from app.api_doc_scraper import scrape_openapi as _shopify_scrape_openapi
+                # Use the function directly since we're in the same module
+                _shopify_scrape_openapi = scrape_openapi
                 all_endpoints = _shopify_scrape_openapi(openapi_url)
                 # Only keep endpoints for /products.json
                 endpoints = [ep for ep in all_endpoints if ep.get('path', '').endswith('/products.json')]

@@ -4,7 +4,7 @@
 @author Huy Le (huyisme-005)
 """
 
-from app.rules.field_mapper import map_fields
+from rules.field_mapper import map_fields
 
 def build_flow_json(intent: dict) -> dict:
     """
