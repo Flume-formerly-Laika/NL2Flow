@@ -1,5 +1,18 @@
 # NL2Flow: Natural Language to Automation Flow Generator
 
+This project converts natural language automation requests into structured flow definitions using Google Gemini, FastAPI, and simplified field mapping. It also includes API documentation scraping, schema versioning, and schema diff capabilities.
+
+## Features
+- Natural language input via REST API
+- Google Gemini intent extraction
+- Field mapping via dictionary rules
+- Validated JSON flow output
+- **API Documentation Scraping** - Extract endpoints from OpenAPI specs and HTML docs
+- **Schema Versioning** - Store and retrieve API schemas with DynamoDB
+- **Schema Diff Engine** - Compare schema versions to monitor changes
+- Cross-platform support (Windows PowerShell, Command Prompt, Unix/Linux)
+
+## Quick Setup
 > **Transform your ideas into automation with simple English commands!** 🚀
 
 NL2Flow is a powerful tool that converts natural language requests into structured automation flows. Think of it as a **magic translator** that turns your everyday language into computer instructions. No programming knowledge required!
@@ -596,22 +609,21 @@ chmod +x run.sh
 ./run.sh
 ```
 
-### Configuration
+## Configuration
 
 1. **Get a Google API key** from https://makersuite.google.com/app/apikey
 2. **Edit the `.env` file** and replace `your_google_api_key_here` with your actual API key:
+2. **Edit the `.env` file** and replace `your_google_api_key_here` with your actual API key:
    ```
+   GOOGLE_API_KEY=sk-your-actual-api-key-here
    GOOGLE_API_KEY=sk-your-actual-api-key-here
    ```
 3. **Optional: Configure DynamoDB** (for schema versioning):
    ```
-   DYNAMODB_SCHEMA_TABLE=ApiSchemaSnapshots
-   AWS_ACCESS_KEY_ID=your_aws_access_key
-   AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-   AWS_DEFAULT_REGION=us-east-1
+   DYNAMODB_SCHEMA_TABLE=The name you want to give the table
    ```
 
-## 🌐 API Endpoints
+## API Documentation
 
 The server runs on `http://localhost:8000`
 
@@ -665,12 +677,7 @@ The server runs on `http://localhost:8000`
 - **Purpose**: Retrieve a specific schema version by API name and timestamp
 - **Query Parameters**: `api_name`, `timestamp`
 
-#### 9. Diff Schemas
-- **URL**: `POST /diff-schemas`
-- **Purpose**: Compare two schema versions and get structured differences
-- **Body**: `{"old_schema": {...}, "new_schema": {...}}`
-
-#### 10. Interactive Documentation
+#### 9. Interactive Documentation
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`
 
@@ -1221,249 +1228,304 @@ Here's a step-by-step example of using DynamoDB:
 ```
 
 #### 2. Scrape an API (This automatically stores in DynamoDB)
-```bash
-curl -X POST "http://localhost:8000/scrape-openapi" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
-     }'
-```
-
-**Response includes:**
+#### Example 3: Reminder Email
+**Request:**
 ```json
 {
-  "trace_id": "...",
-  "api_name": "PetStore",
-  "version_ts": "2024-01-01T12:00:00Z",
-  "endpoint": "/pet",
-  "method": "GET",
-  "auth_type": "none",
-  "schema_json": {...},
-  "source_url": "https://petstore.swagger.io/v2/swagger.json"
+  "user_input": "Send a reminder email to users who haven't completed their profile"
 }
 ```
 
-#### 3. Check What Was Stored
-```bash
-# Get the timestamp from the response above, then:
-curl "http://localhost:8000/schema-snapshot?api_name=PetStore&timestamp=1704067200"
-```
-
-#### 4. Add More APIs
-```bash
-# Scrape GitHub API
-curl -X POST "http://localhost:8000/scrape-openapi" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "openapi_url": "https://api.github.com/v3/swagger.json"
-     }'
-
-# Scrape Gmail API (HTML)
-curl -X POST "http://localhost:8000/scrape-html" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "doc_url": "https://developers.google.com/gmail/api/reference/rest"
-     }'
-```
-
-### 🔍 Popular APIs to Scrape and Store
-
-#### OpenAPI Specs (JSON):
-- `https://petstore.swagger.io/v2/swagger.json` (PetStore - default)
-- `https://api.github.com/v3/swagger.json` (GitHub API)
-- `https://api.stripe.com/v1/swagger.json` (Stripe API)
-- `https://api.slack.com/openapi/v2/slack_web.json` (Slack API)
-- `https://api.twitter.com/2/openapi.json` (Twitter API)
-
-#### HTML Documentation:
-- `https://developers.google.com/gmail/api/reference/rest` (Gmail API - default)
-- `https://docs.shopify.com/api/admin-rest` (Shopify API)
-- `https://developer.twitter.com/en/docs/api-reference-index` (Twitter API)
-- `https://docs.github.com/en/rest` (GitHub REST API)
-
-### 📊 Understanding Your Data
-
-#### Table Structure
-```
-ApiSchemaSnapshots Table:
-├── api_name (Partition Key)
-│   ├── PetStore
-│   ├── GitHub
-│   ├── Gmail
-│   └── ...
-└── timestamp (Sort Key)
-    ├── 1704067200 (Jan 1, 2024)
-    ├── 1704153600 (Jan 2, 2024)
-    └── ...
-```
-
-#### Sample Entry
+**Response:**
 ```json
 {
-  "api_name": "PetStore",
-  "timestamp": "1704067200",
-  "endpoint": "/pet",
-  "method": "GET",
-  "schema": {
-    "input": {"type": "none"},
-    "output": {"type": "json", "status_code": "200"}
-  },
-  "metadata": {
-    "auth_type": "none",
-    "source_url": "https://petstore.swagger.io/v2/swagger.json",
-    "version_ts": "2024-01-01T12:00:00Z"
+  "trace_id": "550e8400-e29b-41d4-a716-446655440002",
+  "flow": {
+    "flow": {
+      "trigger": {
+        "event": "user_signup"
+      },
+      "actions": [
+        {
+          "action_type": "send_email",
+          "template_id": "reminder",
+          "params": {
+            "first_name": "{{ user.user.name }}",
+            "user_email": "{{ user.user.email }}"
+          }
+        }
+      ]
+    }
   }
 }
 ```
 
-### 🛠️ Advanced DynamoDB Features
+## API Documentation Scraping
 
-#### Manual Entry Addition (For Developers)
-If you want to manually add entries without scraping:
+### Scrape OpenAPI Specs
 
-```python
-from app.utils.dynamodb_snapshots import store_schema_snapshot
-import time
-
-# Add a manual entry
-store_schema_snapshot(
-    api_name="MyCustomAPI",
-    endpoint="/users",
-    method="GET",
-    schema={
-        "input": {"type": "none"},
-        "output": {"type": "json", "status_code": "200"}
-    },
-    metadata={
-        "auth_type": "bearer_token",
-        "source_url": "https://myapi.com/docs",
-        "version_ts": "2024-01-01T00:00:00Z"
-    },
-    timestamp=int(time.time())
-)
-```
-
-#### Batch Operations
-To add multiple APIs quickly:
-1. Use `GET /scrape-openapi` for each API
-2. Each execution adds ALL endpoints from that API
-3. No need to manually specify each endpoint
-
-#### Version Tracking
-- Each scraping creates a new version with a timestamp
-- Use the `version_ts` to track when schemas were added
-- Compare versions using the diff engine
-
-### 🐛 DynamoDB Troubleshooting
-
-#### ❌ **"Table doesn't exist" Error**
-- **Solution:** Create the DynamoDB table first (see Step 3 above)
-- **Check:** AWS credentials are properly configured
-- **Check:** Table name matches `DYNAMODB_SCHEMA_TABLE` in `.env`
-
-#### ❌ **"Access Denied" Error**
-- **Solution:** Verify your AWS credentials have DynamoDB permissions
-- **Required permissions:** `dynamodb:CreateTable`, `dynamodb:PutItem`, `dynamodb:Query`, `dynamodb:Scan`
-- **Check:** AWS region configuration
-- **Check:** Firewall settings
-
-#### ❌ **"No entries found"**
-- **Check:** Did you actually scrape an API? (The storage only happens during scraping)
-- **Check:** Are you using the correct table name?
-- **Check:** Are you querying with the correct API name and timestamp?
-- **Check:** The scraping response for the correct values
-
-#### ❌ **"Connection timeout"**
-- **Check:** Internet connection
-- **Check:** AWS region configuration
-- **Check:** Firewall settings
-- **Check:** AWS service status
-
-#### ❌ **"Invalid credentials"**
-- **Check:** AWS access key and secret key are correct
-- **Check:** Credentials are properly set in `.env` file
-- **Check:** AWS account is active and not suspended
-
-#### ❌ **"Free tier exceeded"**
-- **Check:** AWS Billing Dashboard for usage
-- **Solution:** Wait for next month or upgrade to paid tier
-- **Monitor:** Set up billing alerts to avoid surprises
-
-### 💡 DynamoDB Best Practices
-
-#### 🎯 **Naming Conventions**
-- **API Names:** Use consistent naming (e.g., "PetStore", "GitHub", "Gmail")
-- **Timestamps:** Use Unix timestamps for easy sorting
-- **Endpoints:** Include leading slash (e.g., "/users", not "users")
-
-#### 🎯 **Data Organization**
-- **Group related APIs:** Use similar naming for related services
-- **Regular scraping:** Set up regular scraping to track API changes
-- **Clean up old data:** Periodically remove outdated entries
-
-#### 🎯 **Performance Tips**
-- **Batch operations:** Scrape multiple APIs in one session
-- **Efficient queries:** Use specific API names and time ranges
-- **Monitor usage:** Check AWS CloudWatch for performance metrics
-
-#### 🎯 **Free Tier Optimization**
-- **Limit scraping frequency:** Don't scrape the same API multiple times daily
-- **Choose smaller APIs:** Start with APIs that have fewer endpoints
-- **Monitor storage:** Keep track of your 25GB limit
-- **Use pay-per-request:** More cost-effective for variable workloads
-
-### 🔒 Security Considerations
-
-#### AWS Credentials
-- **Keep credentials secure:** Don't share your AWS keys
-- **Use IAM roles:** For production, use IAM roles instead of access keys
-- **Rotate keys:** Regularly rotate your AWS access keys
-- **Least privilege:** Only grant necessary DynamoDB permissions
-
-#### Data Privacy
-- **Sensitive data:** Be careful not to store sensitive information
-- **API keys:** Don't store actual API keys in schemas
-- **Access control:** Use AWS IAM to control who can access your data
-
-### 📊 Monitoring and Analytics
-
-#### AWS CloudWatch
-- **Monitor table metrics:** Check read/write capacity
-- **Set up alarms:** Get notified of high usage
-- **Track costs:** Monitor DynamoDB costs
-
-#### AWS Billing Dashboard
-- **Track free tier usage:** Monitor your 25GB storage and 25 RCU/WCU
-- **Set up billing alerts:** Get notified when approaching limits
-- **Review monthly charges:** Ensure you stay within free tier
-
-#### Application Logs
-- **Check application logs:** For DynamoDB operation errors
-- **Monitor performance:** Track response times
-- **Debug issues:** Use logs to troubleshoot problems
-
----
-
-**Remember:** DynamoDB storage happens automatically when you use the API scraping features. You don't need to manually manage the database - just scrape APIs and the system will store everything for you! The free tier is perfect for testing and small projects. 🚀
-
-## 🧪 Testing
-
-Run the test suite to verify everything is working:
+Extract endpoints, methods, authentication, and schemas from OpenAPI/Swagger JSON files:
 
 ```bash
+# POST request
+curl -X POST "http://localhost:8000/scrape-openapi" \
+     -H "Content-Type: application/json" \
+     -d '{"openapi_url": "https://petstore.swagger.io/v2/swagger.json"}'
+
+# GET request (browser-friendly)
+curl "http://localhost:8000/scrape-openapi?openapi_url=https://petstore.swagger.io/v2/swagger.json"
+```
+
+**Response:**
+```json
+{
+  "api_name": "Petstore",
+  "version_ts": "2024-01-15T10:30:00Z",
+  "endpoint": "/pet",
+  "method": "GET",
+  "auth_type": "api_key",
+  "schema_json": {
+    "input": {"type": "none"},
+    "output": {"type": "json", "schema": {...}}
+  },
+  "source_url": "https://petstore.swagger.io/v2/swagger.json"
+}
+```
+
+### Scrape HTML Documentation
+
+Extract endpoints from HTML documentation pages:
+
+```bash
+# POST request
+curl -X POST "http://localhost:8000/scrape-html" \
+     -H "Content-Type: application/json" \
+     -d '{"doc_url": "https://developers.google.com/gmail/api/reference/rest"}'
+
+# GET request (browser-friendly)
+curl "http://localhost:8000/scrape-html?doc_url=https://developers.google.com/gmail/api/reference/rest"
+```
+
+## Schema Versioning
+
+### Store Schema Snapshots
+
+When scraping API documentation, schemas are automatically stored in DynamoDB with timestamps for versioning.
+
+### Retrieve Schema Versions
+
+Get a specific schema version by API name and timestamp:
+
+```bash
+curl "http://localhost:8000/schema-snapshot?api_name=Shopify&timestamp=1705312200"
+```
+
+**Response:**
+```json
+{
+  "api_name": "Shopify",
+  "version_ts": "2024-01-15T10:30:00Z",
+  "endpoint": "/admin/api/2023-10/products.json",
+  "method": "GET",
+  "auth_type": "OAuth",
+  "schema_json": {
+    "input": {"type": "none"},
+    "output": {"type": "json", "schema": {...}}
+  },
+  "source_url": "https://shopify.dev/api/admin-rest/2023-10/openapi.json"
+}
+```
+
+## Schema Diff Engine
+
+Compare two schema versions to monitor changes:
+
+```python
+from app.utils.schema_diff import diff_schema_versions
+
+old_schema = {
+    "product": {
+        "title": "string",
+        "vendor": "string"
+    }
+}
+
+new_schema = {
+    "product": {
+        "title": "string",
+        "vendor": "string",
+        "tags": "string"
+    }
+}
+
+diff = diff_schema_versions(old_schema, new_schema)
+# Returns structured diff with additions, deletions, and changes
+```
+
+**Example Output:**
+```json
+{
+  "added": {
+    "product.tags": {
+      "new_type": "string"
+    }
+  },
+  "removed": {},
+  "changed": {}
+}
+```
+
+### Field Mapping
+
+The system automatically maps common field names to standardized output fields:
+
+| Input Field | Output Field |
+|-------------|--------------|
+| `name` | `first_name` |
+| `email` | `user_email` |
+| `signup_date` | `registration_date` |
+
+### Supported Triggers
+
+Common trigger events the system recognizes:
+- `user_signup` - When a new user registers
+- `order_placed` - When a customer places an order  
+- `payment_received` - When payment is processed
+- `profile_updated` - When user updates their profile
+- `subscription_started` - When user subscribes to a service
+
+### Supported Templates
+
+Common email templates the system generates:
+- `welcome` - Welcome emails for new users
+- `confirmation` - Order/action confirmations
+- `reminder` - Reminder notifications
+- `notification` - General notifications
+- `alert` - Important alerts
+
+### Error Responses
+
+#### 422 Validation Error
+When the request payload is invalid:
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "user_input"],
+      "msg": "ensure this value has at least 1 characters",
+      "type": "value_error.any_str.min_length",
+      "ctx": {"limit_value": 1}
+    }
+  ]
+}
+```
+
+#### 500 Internal Server Error
+When processing fails:
+```json
+{
+  "detail": "Processing failed: Error description here"
+}
+```
+
+### Browser Testing
+
+For quick testing without curl, you can use your browser:
+
+1. **Default example**: Visit `http://localhost:8000/parse-request`
+2. **Custom input**: Visit `http://localhost:8000/parse-request?user_input=Your automation request here`
+3. **OpenAPI scraping**: Visit `http://localhost:8000/scrape-openapi` (uses Petstore API)
+4. **HTML scraping**: Visit `http://localhost:8000/scrape-html`
+5. **Interactive docs**: Visit `http://localhost:8000/docs` to test via Swagger UI
+
+### Tips for Better Results
+
+1. **Be specific about triggers**: Instead of "when something happens", use "when a user signs up" or "when an order is placed"
+
+2. **Include field details**: Mention what information should be included (name, email, date, etc.)
+
+3. **Specify the action**: Clearly state what should happen (send email, create task, etc.)
+
+4. **Good examples**:
+   - ✅ "When a new user registers, send a welcome email with their name and registration date"
+   - ✅ "After a customer completes a purchase, send an order confirmation with order details"
+   - ❌ "Do something when stuff happens"
+
+## Testing
+
+Run tests with:
+```bash
+# Install test dependencies (if not already installed)
+pip install pytest httpx pytest-asyncio
+
 # Run all tests
-pytest
+pytest tests/
 
-# Run specific test file
-pytest tests/test_main.py
-
-# Run with verbose output
-pytest -v
+# Run specific test
+pytest tests/test_main.py -k test_schema_diff_engine
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
+nl2flow/
+├── .env                 # Environment configuration
+├── setup.ps1           # PowerShell setup script
+├── run.ps1             # PowerShell run script
+├── run.bat             # Windows batch run script
+├── run.sh              # Unix/Linux run script
+├── requirements.txt    # Python dependencies
+├── app/
+│   ├── main.py         # FastAPI application
+│   ├── gpt_handler.py  # Google Gemini integration
+│   ├── models.py       # Pydantic models
+│   ├── transformer.py  # Flow JSON builder
+│   ├── api_doc_scraper.py  # API documentation scraper
+│   ├── rules/
+│   │   └── field_mapper.py  # Field mapping logic
+│   ├── schemas/
+│   │   └── email_flow_schema.json  # JSON schema
+│   └── utils/
+│       ├── logger.py   # Request logging
+│       ├── validator.py # Flow validation
+│       ├── dynamodb_snapshots.py  # Schema versioning
+│       └── schema_diff.py  # Schema diff engine
+└── tests/
+    ├── test_main.py    # API tests
+    └── test_transformer.py  # Transform tests
+```
+
+## Troubleshooting
+
+### PowerShell Execution Policy
+If you get an execution policy error in PowerShell:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Python Not Found
+Make sure Python 3.8+ is installed and in your PATH:
+- Download from https://python.org/downloads/
+- During installation, check "Add Python to PATH"
+
+### Google API Errors
+- Ensure your API key is correct in the `.env` file
+- Check your Google account has credits/billing set up
+- The application includes fallback responses if the API is unavailable
+
+### DynamoDB Configuration
+- Ensure AWS credentials are configured (if using DynamoDB)
+- The application will work without DynamoDB, but schema versioning won't be available
+
+### Port Already in Use
+If port 8000 is busy, modify the run scripts to use a different port:
+```
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+## License
+
+MIT License - see LICENSE file for details.
 NL2Flow/
 ├── src/
 │   ├── app/
