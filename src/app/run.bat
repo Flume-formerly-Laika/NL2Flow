@@ -32,4 +32,4 @@ echo API documentation at: http://localhost:8000/docs
 echo Press Ctrl+C to stop the server
 
 REM Start the FastAPI server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn src.app.main:app --reload --host 0.0.0.0 --port 8000
