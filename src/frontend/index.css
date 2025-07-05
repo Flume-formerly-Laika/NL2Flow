@@ -1,0 +1,142 @@
+/**
+ * @file index.css
+ * @brief Main CSS file for the NL2Flow admin dashboard
+ * @author Huy Le (huyisme-005)
+ * @description 
+ *     Contains Tailwind CSS imports and custom styles for the dashboard.
+ *     Provides consistent styling across all components and responsive design.
+ * 
+ *     Key Features:
+ *     - Tailwind CSS framework
+ *     - Custom component styles
+ *     - Responsive design utilities
+ *     - Dark mode support (future)
+ * 
+ *     Potential Issues:
+ *     - Tailwind CSS not installed
+ *     - CSS conflicts with other styles
+ *     - Responsive breakpoint issues
+ * 
+ *     Debugging Tips:
+ *     - Check Tailwind CSS installation
+ *     - Verify CSS import order
+ *     - Test responsive design
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+    html {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    
+    body {
+        @apply bg-gray-50 text-gray-900;
+    }
+}
+
+/* Custom component styles */
+@layer components {
+    .btn-primary {
+        @apply px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors;
+    }
+    
+    .btn-secondary {
+        @apply px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors;
+    }
+    
+    .btn-success {
+        @apply px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors;
+    }
+    
+    .btn-danger {
+        @apply px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors;
+    }
+    
+    .card {
+        @apply bg-white rounded-lg shadow border border-gray-200;
+    }
+    
+    .card-header {
+        @apply px-6 py-4 border-b border-gray-200;
+    }
+    
+    .card-body {
+        @apply p-6;
+    }
+}
+
+/* Custom utility styles */
+@layer utilities {
+    .text-gradient {
+        @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+    }
+    
+    .animate-pulse-slow {
+        animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+}
+
+/* Focus styles for accessibility */
+*:focus {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+}
+
+/* Loading spinner */
+.spinner {
+    @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-500;
+}
+
+/* Status indicators */
+.status-success {
+    @apply text-green-600 bg-green-50 border-green-200;
+}
+
+.status-error {
+    @apply text-red-600 bg-red-50 border-red-200;
+}
+
+.status-warning {
+    @apply text-yellow-600 bg-yellow-50 border-yellow-200;
+}
+
+.status-info {
+    @apply text-blue-600 bg-blue-50 border-blue-200;
+} 

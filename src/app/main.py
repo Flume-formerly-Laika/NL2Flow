@@ -7,6 +7,7 @@
 # import fastapi for creating the API, request handling, and HTTP exceptions
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
 import json
@@ -47,6 +48,18 @@ app = FastAPI(
     description="Natural Language to Automation Flow Generator with API Documentation Scraper",
     version="1.0.0"
 ) # main FastAPI application instance
+
+# Add CORS middleware for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include dashboard router
+app.include_router(dashboard_router)
 
 class OpenAPIRequest(BaseModel):
     openapi_url: str
